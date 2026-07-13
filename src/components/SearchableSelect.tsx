@@ -6,6 +6,7 @@ export interface Option {
   name: string;
   description?: string;
   hex?: string;
+  backsetType?: string;
   [key: string]: unknown;
 }
 
@@ -13,13 +14,15 @@ function optionKey(opt: Option): string {
   return opt.id ?? opt.code ?? opt.name;
 }
 
-/** Format an option as "{code} — {name}" when code exists, otherwise just the name. */
+/** Format an option as "{code} — {name}" when code exists, otherwise just the name.
+ * Also appends backsetType if present. */
 function formatOption(opt: Option, displayKey: string): string {
   const name = (opt[displayKey] as string) || opt.name;
-  if (opt.code) {
-    return `${opt.code} — ${name}`;
+  let formatted = opt.code ? `${opt.code} — ${name}` : name;
+  if (opt.backsetType) {
+    formatted += ` — ${opt.backsetType}`;
   }
-  return name;
+  return formatted;
 }
 
 interface SearchableSelectProps {
@@ -125,7 +128,7 @@ export function SearchableSelect({
   // Compute the display text for the selected value
   const displayValue = value
     ? showCode && value.code
-      ? `${value.code} — ${(value[displayKey] as string) || value.name}`
+      ? `${value.code} — ${(value[displayKey] as string) || value.name}${value.backsetType ? ` — ${value.backsetType}` : ""}`
       : (value[displayKey] as string) || value.name
     : "";
 
@@ -137,7 +140,7 @@ export function SearchableSelect({
         type="text"
         disabled={disabled}
         placeholder={value ? displayValue : placeholder}
-        title={value?.description ? `${value.name} — ${value.description}` : undefined}
+        title={value?.description ? `${value.name} — ${value.description}${value.backsetType ? ` (${value.backsetType})` : ""}` : undefined}
         value={isOpen ? search : ""}
         onChange={(e) => {
           setSearch(e.target.value);

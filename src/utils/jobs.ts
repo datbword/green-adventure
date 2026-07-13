@@ -11,6 +11,7 @@ export interface SavedPart {
   function: string;
   finish: string;
   keyway: string;
+  pins?: string;
   handing: string;
   backset: string;
   notes: string;

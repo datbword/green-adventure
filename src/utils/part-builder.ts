@@ -17,6 +17,7 @@ export function buildPartNumber(
     keyway: selection.keyway?.code,
     handing: selection.handing?.code,
     backset: selection.backset?.code,
+    pins: selection.pins?.toString(),
   };
 
   let result = series.partNumberPattern;
@@ -47,6 +48,7 @@ export function buildPartialPartNumber(
     keyway: selection.keyway?.code,
     handing: selection.handing?.code,
     backset: selection.backset?.code,
+    pins: selection.pins?.toString(),
   };
 
   let result = series.partNumberPattern;
@@ -125,6 +127,9 @@ export function isComplete(selection: Selection): boolean {
   // Handing is optional
   if (selection.series.options.handing && selection.series.options.handing.length > 0 && !selection.handing) return false;
 
+  // Pin count is required if the selected keyway has multiple pin options
+  if (selection.keyway?.availablePins && selection.keyway.availablePins.length > 1 && !selection.pins) return false;
+
   return true;
 }
 
@@ -156,6 +161,12 @@ export function getFieldCounts(series: ProductSeries | null, selection: Selectio
   // Grade if it exists
   if (series.options.grade && series.options.grade.length > 0) {
     requiredFields.push((s) => s.grade !== null);
+  }
+
+  // Pin count is required if the selected keyway has multiple pin options
+  // We check the selection's keyway, not the series options, since availablePins is per-keyway
+  if (selection.keyway?.availablePins && selection.keyway.availablePins.length > 1) {
+    requiredFields.push((s) => s.pins !== null);
   }
 
   const total = requiredFields.length;

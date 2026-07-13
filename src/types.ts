@@ -42,6 +42,8 @@ export interface SeriesOption {
   code: string;
   name: string;
   description?: string;
+  availablePins?: number[];
+  backsetType?: string;
 }
 
 export interface Selection {
@@ -51,6 +53,7 @@ export interface Selection {
   function: SeriesOption | null;
   finish: SeriesOption | null;
   keyway: SeriesOption | null;
+  pins: number | null;
   handing: SeriesOption | null;
   backset: SeriesOption | null;
   style: SeriesOption | null;

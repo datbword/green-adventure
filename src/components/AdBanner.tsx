@@ -1,8 +1,9 @@
 interface AdBannerProps {
-  tier: "free" | "premium";
+  tier?: "free" | "premium";
 }
 
 export function AdBanner({ tier }: AdBannerProps) {
+  // Show for free tier and non-signed-in users (non-signed-in = free tier)
   if (tier === "premium") return null;
 
   return (

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { readFile, readdir } from "node:fs/promises";
@@ -70,6 +70,7 @@ function Home() {
     function: null,
     finish: null,
     keyway: null,
+    pins: null,
     handing: null,
     backset: null,
     style: null,
@@ -94,6 +95,16 @@ function Home() {
   const clearAll = () => {
     setSelection({ ...defaultSelection });
   };
+
+  // Auto-select pin count when keyway has only one available pin option
+  useEffect(() => {
+    if (selection.keyway?.availablePins && selection.keyway.availablePins.length === 1) {
+      const onlyPin = selection.keyway.availablePins[0];
+      if (selection.pins !== onlyPin) {
+        setSelection((prev) => ({ ...prev, pins: onlyPin }));
+      }
+    }
+  }, [selection.keyway]);
 
   const currentManufacturer = selection.manufacturerId ? data.manufacturerFiles[selection.manufacturerId] : null;
 
@@ -230,6 +241,7 @@ function Home() {
                         function: selection.function?.name ?? "",
                         finish: selection.finish?.name ?? "",
                         keyway: selection.keyway?.name ?? "",
+                        pins: selection.pins?.toString() ?? "",
                         handing: selection.handing?.name ?? "",
                         backset: selection.backset?.name ?? "",
                         notes: "",
@@ -295,6 +307,55 @@ function Home() {
             })}
           </div>
 
+          {/* Pin Count Selector — only show if the selected keyway has multiple pin options */}
+          {selection.keyway?.availablePins && selection.keyway.availablePins.length > 0 && (
+            <div className="mt-4">
+              <label className="label-text">Pin Count</label>
+              <div className="mt-1 flex flex-wrap gap-2">
+                {selection.keyway.availablePins.map((pin) => (
+                  <button
+                    key={pin}
+                    onClick={() => updateSelection("pins", selection.pins === pin ? null : pin)}
+                    className="rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+                    style={{
+                      backgroundColor: selection.pins === pin
+                        ? "var(--accent)"
+                        : "color-mix(in srgb, var(--text-muted) 10%, transparent)",
+                      color: selection.pins === pin ? "#fff" : "var(--text-primary)",
+                      border: selection.pins === pin
+                        ? "2px solid var(--accent)"
+                        : "2px solid var(--border-color)",
+                      cursor: "pointer",
+                      minHeight: "44px",
+                      minWidth: "60px",
+                    }}
+                    aria-pressed={selection.pins === pin}
+                  >
+                    {pin}-Pin
+                  </button>
+                ))}
+                {selection.pins !== null && (
+                  <button
+                    onClick={() => updateSelection("pins", null)}
+                    className="rounded-lg px-3 py-2 text-xs transition-colors"
+                    style={{
+                      color: "var(--text-muted)",
+                      cursor: "pointer",
+                      minHeight: "44px",
+                    }}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              {selection.keyway.availablePins.length === 1 && (
+                <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
+                  Only {selection.keyway.availablePins[0]}-pin available for this keyway — auto-selected.
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Cross-References */}
           {crossRefs.length > 0 && (
             <section className="mt-6">
@@ -331,10 +392,10 @@ function Home() {
         </>
       )}
 
-      {/* Ad banner (free tier) */}
-      {currentManufacturer && user && (
+      {/* Ad banner (free tier) — show for all free-tier users, including non-signed-in */}
+      {currentManufacturer && (!user || user.tier === "free") && (
         <div className="mt-6">
-          <AdBanner tier={user.tier} />
+          <AdBanner tier={user?.tier ?? "free"} />
         </div>
       )}
 
