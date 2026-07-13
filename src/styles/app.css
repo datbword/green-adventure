@@ -1,0 +1,213 @@
+@import "tailwindcss";
+
+/* ── Approved Brand Colors ── */
+:root {
+  --color-navy: #1B2A4A;
+  --color-navy-dark: #0F1A2E;
+  --color-brass: #C8963E;
+  --color-brass-light: #D4A84E;
+  --color-green: #2E7D32;
+  --color-green-light: #43A047;
+  --color-warm-gray: #F5F3F0;
+  --color-warm-gray-dark: #E8E4DE;
+  --color-slate: #2D2D2D;
+  --color-off-white: #F0ECE4;
+}
+
+/* ── Base Styles ── */
+@layer base {
+  html, body {
+    @apply bg-[#F5F3F0] text-[#2D2D2D] antialiased;
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  /* Default (light) mode is "normal" */
+  .mode-normal {
+    --bg-primary: #F5F3F0;
+    --bg-secondary: #FFFFFF;
+    --bg-tertiary: #E8E4DE;
+    --text-primary: #2D2D2D;
+    --text-secondary: #5C5C5C;
+    --text-muted: #8A8A8A;
+    --border-color: #D4D0CA;
+    --accent: #1B2A4A;
+    --accent-light: #2A4070;
+    --brass: #C8963E;
+    --brass-hover: #B8862E;
+    --success: #2E7D32;
+    --focus-ring: rgba(27, 42, 74, 0.25);
+  }
+
+  /* Dark mode — deep navy background, brass accents */
+  .mode-dark {
+    --bg-primary: #0F1A2E;
+    --bg-secondary: #1B2A4A;
+    --bg-tertiary: #233555;
+    --text-primary: #F0ECE4;
+    --text-secondary: #C4BDB2;
+    --text-muted: #8A8278;
+    --border-color: #2E4070;
+    --accent: #C8963E;
+    --accent-light: #D4A84E;
+    --brass: #C8963E;
+    --brass-hover: #D4A84E;
+    --success: #43A047;
+    --focus-ring: rgba(200, 150, 62, 0.3);
+  }
+
+  /* High contrast mode — black/white, strong borders */
+  .mode-high-contrast {
+    --bg-primary: #FFFFFF;
+    --bg-secondary: #F5F5F5;
+    --bg-tertiary: #E8E8E8;
+    --text-primary: #000000;
+    --text-secondary: #1A1A1A;
+    --text-muted: #333333;
+    --border-color: #000000;
+    --accent: #000000;
+    --accent-light: #333333;
+    --brass: #000000;
+    --brass-hover: #333333;
+    --success: #006600;
+    --focus-ring: rgba(0, 0, 0, 0.5);
+  }
+  .mode-high-contrast .searchable-select input {
+    border-width: 2px !important;
+  }
+  .mode-high-contrast .part-number-display {
+    border-width: 2px !important;
+  }
+  .mode-high-contrast .cross-ref-card {
+    border-width: 2px !important;
+  }
+  .mode-high-contrast .label-text {
+    font-size: 0.9375rem !important;
+  }
+  .mode-high-contrast input {
+    font-size: 1rem !important;
+  }
+
+  /* Calm mode — desaturated, reduced spacing, no animations */
+  .mode-calm {
+    --bg-primary: #F0EDEA;
+    --bg-secondary: #F8F6F4;
+    --bg-tertiary: #E6E3DF;
+    --text-primary: #3A3A3A;
+    --text-secondary: #6B6B6B;
+    --text-muted: #999999;
+    --border-color: #C8C5C0;
+    --accent: #5A6A7A;
+    --accent-light: #7A8A9A;
+    --brass: #8A7A6A;
+    --brass-hover: #9A8A7A;
+    --success: #5A7A5A;
+    --focus-ring: rgba(90, 106, 122, 0.2);
+  }
+  .mode-calm *, .mode-calm *::before, .mode-calm *::after {
+    animation-duration: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0s !important;
+  }
+  .mode-calm [style*="width:"] {
+    transition: none !important;
+  }
+  .mode-calm .searchable-select input:focus {
+    box-shadow: none !important;
+  }
+
+  /* Shared variable usage */
+  body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+  }
+}
+
+/* ── Component Styles ── */
+@layer components {
+  .searchable-select {
+    @apply relative;
+  }
+  .searchable-select input {
+    @apply w-full rounded-lg border px-4 py-3.5 pr-10 text-base shadow-sm transition-colors;
+    background-color: var(--bg-secondary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+    font-size: 1rem;
+    min-height: 48px;
+    -webkit-appearance: none;
+  }
+  .searchable-select input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--focus-ring);
+    outline: none;
+  }
+  .searchable-select input::placeholder {
+    color: var(--text-muted);
+  }
+  .searchable-select .dropdown {
+    @apply absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg border shadow-lg;
+    background-color: var(--bg-secondary);
+    border-color: var(--border-color);
+  }
+  .searchable-select .option {
+    @apply cursor-pointer px-4 py-3 text-sm transition-colors;
+    color: var(--text-primary);
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+  .searchable-select .option:hover,
+  .searchable-select .option.active {
+    background-color: color-mix(in srgb, var(--accent) 8%, transparent);
+  }
+  .searchable-select .option.selected {
+    background-color: color-mix(in srgb, var(--accent) 15%, transparent);
+    font-weight: 600;
+  }
+
+  .part-number-display {
+    @apply rounded-xl border-2 p-5 text-center;
+    border-color: color-mix(in srgb, var(--brass) 40%, transparent);
+    background-color: color-mix(in srgb, var(--brass) 8%, transparent);
+  }
+  .part-number-display .part-number {
+    @apply break-all text-2xl font-bold tracking-wider sm:text-3xl;
+    color: var(--accent);
+  }
+
+  .label-text {
+    @apply mb-1.5 block text-sm font-medium;
+    color: var(--text-secondary);
+  }
+
+  .cross-ref-card {
+    @apply rounded-lg border p-4;
+    background-color: var(--bg-secondary);
+    border-color: var(--border-color);
+  }
+  .cross-ref-card:hover {
+    border-color: var(--brass);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+
+  .mode-toggle-btn {
+    @apply flex h-9 w-9 items-center justify-center rounded-lg transition-colors;
+    background-color: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+  }
+  .mode-toggle-btn:hover {
+    border-color: var(--brass);
+    color: var(--brass);
+  }
+  .mode-toggle-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* Glove-friendly large touch targets */
+  button, .mode-toggle-btn, .option, select, input[type="text"], input[type="search"] {
+    min-height: 44px;
+  }
+}
