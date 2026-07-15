@@ -83,15 +83,6 @@ export function UserMenu({ user, onSignOut }: UserMenuProps) {
             <span>📋</span> My Jobs
           </Link>
 
-          <Link
-            to="/pricing"
-            onClick={() => setOpen(false)}
-            style={itemStyle}
-            className="hover:brightness-110"
-          >
-            <span>$</span> Pricing & Account
-          </Link>
-
           <hr style={{ borderColor: "var(--border-color)", margin: "4px 0" }} />
 
           <button

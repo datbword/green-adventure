@@ -5,7 +5,6 @@ import { readFile, readdir } from "node:fs/promises";
 import { SearchableSelect } from "~/components/SearchableSelect";
 import { AuthModal } from "~/components/AuthModal";
 import { UserMenu } from "~/components/UserMenu";
-import { AdBanner } from "~/components/AdBanner";
 import { SaveToJobModal } from "~/components/SaveToJobModal";
 import { buildPartNumber, buildPartialPartNumber, findCrossReferences, isComplete, getActiveFields, getFieldCounts } from "~/utils/part-builder";
 import { useVisualMode } from "~/hooks/useVisualMode";
@@ -158,10 +157,6 @@ function Home() {
             <div className="flex items-center gap-1 sm:gap-2">
               <Link to="/jobs" className="mode-toggle-btn" title="My Jobs" aria-label="My Jobs">
                 <span className="text-xs" style={{ color: "var(--text-secondary)" }}>&#9776;</span>
-              </Link>
-              <Link to="/pricing" className="mode-toggle-btn" title="Pricing & Account"
-                aria-label="Pricing">
-                <span className="text-xs font-medium" style={{ color: "var(--brass)" }}>$</span>
               </Link>
               <UserMenu user={user} onSignOut={clearSession} />
             </div>
@@ -390,13 +385,6 @@ function Home() {
             </section>
           )}
         </>
-      )}
-
-      {/* Ad banner (free tier) — show for all free-tier users, including non-signed-in */}
-      {currentManufacturer && (!user || user.tier === "free") && (
-        <div className="mt-6">
-          <AdBanner tier={user?.tier ?? "free"} />
-        </div>
       )}
 
       {/* Empty state (no manufacturer selected) */}
