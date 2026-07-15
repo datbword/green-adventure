@@ -183,37 +183,109 @@ export function SearchableSelect({
               No matches found
             </div>
           ) : (
-            filtered.map((opt, idx) => {
-              const isSelected = value ? optionKey(value) === optionKey(opt) : false;
-              const format = formatOption(opt, displayKey);
-              return (
-                <div
-                  key={optionKey(opt)}
-                  role="option"
-                  aria-selected={isSelected}
-                  className={`option ${isSelected ? "selected" : ""} ${idx === activeIndex ? "active" : ""}`}
-                  onClick={() => handleSelect(opt)}
-                  onMouseEnter={() => setActiveIndex(idx)}
-                >
-                  <div className="flex items-center gap-2">
-                    {opt.hex && (
-                      <span
-                        className="inline-block h-4 w-4 shrink-0 rounded-full border"
-                        style={{ backgroundColor: opt.hex, borderColor: "var(--border-color)" }}
-                      />
-                    )}
-                    <div>
-                      <span className="font-medium">{format}</span>
+            (() => {
+              // Check if options have backsetType — if so, group by it
+              const hasBacksetTypes = filtered.some((o) => o.backsetType);
+              if (hasBacksetTypes) {
+                // Group by backsetType
+                const groups: Record<string, Option[]> = {};
+                for (const opt of filtered) {
+                  const g = opt.backsetType || "other";
+                  if (!groups[g]) groups[g] = [];
+                  groups[g].push(opt);
+                }
+                // Sort groups: commercial first, then residential, then others
+                const groupOrder = ["commercial", "residential"];
+                const sortedGroups = Object.keys(groups).sort(
+                  (a, b) => {
+                    const ai = groupOrder.indexOf(a);
+                    const bi = groupOrder.indexOf(b);
+                    return (ai >= 0 ? ai : 99) - (bi >= 0 ? bi : 99);
+                  }
+                );
+                // Track absolute index for active index
+                let absIdx = 0;
+                return sortedGroups.map((groupName) => {
+                  const grpOptions = groups[groupName];
+                  const label = groupName === "commercial" ? "Commercial Application" : groupName === "residential" ? "Residential Application" : groupName;
+                  return (
+                    <div key={groupName}>
+                      <div
+                        className="px-4 py-1.5 text-xs font-semibold uppercase tracking-wider"
+                        style={{ color: "var(--text-muted)", backgroundColor: "var(--bg-tertiary)" }}
+                      >
+                        {label}
+                      </div>
+                      {grpOptions.map((opt) => {
+                        const isSelected = value ? optionKey(value) === optionKey(opt) : false;
+                        const format = formatOption(opt, displayKey);
+                        const currentIdx = absIdx++;
+                        return (
+                          <div
+                            key={optionKey(opt)}
+                            role="option"
+                            aria-selected={isSelected}
+                            className={`option ${isSelected ? "selected" : ""} ${currentIdx === activeIndex ? "active" : ""}`}
+                            onClick={() => handleSelect(opt)}
+                            onMouseEnter={() => setActiveIndex(currentIdx)}
+                          >
+                            <div className="flex items-center gap-2">
+                              {opt.hex && (
+                                <span
+                                  className="inline-block h-4 w-4 shrink-0 rounded-full border"
+                                  style={{ backgroundColor: opt.hex, borderColor: "var(--border-color)" }}
+                                />
+                              )}
+                              <div>
+                                <span className="font-medium">{format}</span>
+                              </div>
+                            </div>
+                            {opt.description && (
+                              <div className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
+                                {opt.description}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-                  </div>
-                  {opt.description && (
-                    <div className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
-                      {opt.description}
+                  );
+                });
+              } else {
+                // No backset types — render flat list
+                return filtered.map((opt, idx) => {
+                  const isSelected = value ? optionKey(value) === optionKey(opt) : false;
+                  const format = formatOption(opt, displayKey);
+                  return (
+                    <div
+                      key={optionKey(opt)}
+                      role="option"
+                      aria-selected={isSelected}
+                      className={`option ${isSelected ? "selected" : ""} ${idx === activeIndex ? "active" : ""}`}
+                      onClick={() => handleSelect(opt)}
+                      onMouseEnter={() => setActiveIndex(idx)}
+                    >
+                      <div className="flex items-center gap-2">
+                        {opt.hex && (
+                          <span
+                            className="inline-block h-4 w-4 shrink-0 rounded-full border"
+                            style={{ backgroundColor: opt.hex, borderColor: "var(--border-color)" }}
+                          />
+                        )}
+                        <div>
+                          <span className="font-medium">{format}</span>
+                        </div>
+                      </div>
+                      {opt.description && (
+                        <div className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
+                          {opt.description}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              );
-            })
+                  );
+                });
+              }
+            })()
           )}
         </div>
       )}

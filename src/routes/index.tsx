@@ -6,7 +6,7 @@ import { SearchableSelect } from "~/components/SearchableSelect";
 import { AuthModal } from "~/components/AuthModal";
 import { UserMenu } from "~/components/UserMenu";
 import { SaveToJobModal } from "~/components/SaveToJobModal";
-import { buildPartNumber, buildPartialPartNumber, findCrossReferences, isComplete, getActiveFields, getFieldCounts } from "~/utils/part-builder";
+import { buildPartNumber, buildPartialPartNumber, findCrossReferences, isComplete, getActiveFields, getFieldCounts, getFieldLabel, getFieldPlaceholder } from "~/utils/part-builder";
 import { useVisualMode } from "~/hooks/useVisualMode";
 import { useAuth } from "~/hooks/useAuth";
 import type { ManufacturerData, ManufacturerOption, ProductSeries, SeriesOption, Selection, DataCache } from "~/types";
@@ -66,29 +66,35 @@ function Home() {
     manufacturerId: null,
     manufacturerName: null,
     series: null,
-    function: null,
-    finish: null,
-    keyway: null,
     pins: null,
-    handing: null,
-    backset: null,
-    style: null,
-    grade: null,
+    options: {},
   };
 
   const [selection, setSelection] = useState<Selection>({ ...defaultSelection });
 
-  const updateSelection = (key: keyof Selection, value: unknown) => {
+  const updateSelection = (key: string, value: SeriesOption | null) => {
     // When manufacturer changes, reset all downstream selections
     if (key === "manufacturerId") {
       setSelection({
         ...defaultSelection,
-        manufacturerId: value as string | null,
+        manufacturerId: value as unknown as string | null,
         manufacturerName: value ? data.manufacturers.find((m) => m.id === value)?.name ?? null : null,
       });
       return;
     }
-    setSelection((prev) => ({ ...prev, [key]: value }));
+    if (key === "series") {
+      setSelection((prev) => ({
+        ...prev,
+        series: value as unknown as ProductSeries | null,
+        options: {},
+        pins: null,
+      }));
+      return;
+    }
+    setSelection((prev) => ({
+      ...prev,
+      options: { ...prev.options, [key]: value },
+    }));
   };
 
   const clearAll = () => {
@@ -97,13 +103,14 @@ function Home() {
 
   // Auto-select pin count when keyway has only one available pin option
   useEffect(() => {
-    if (selection.keyway?.availablePins && selection.keyway.availablePins.length === 1) {
-      const onlyPin = selection.keyway.availablePins[0];
+    const keyway = selection.options.keyway;
+    if (keyway?.availablePins && keyway.availablePins.length === 1) {
+      const onlyPin = keyway.availablePins[0];
       if (selection.pins !== onlyPin) {
         setSelection((prev) => ({ ...prev, pins: onlyPin }));
       }
     }
-  }, [selection.keyway]);
+  }, [selection.options.keyway]);
 
   const currentManufacturer = selection.manufacturerId ? data.manufacturerFiles[selection.manufacturerId] : null;
 
@@ -179,7 +186,7 @@ function Home() {
           label="Brand"
           options={data.manufacturers}
           value={selection.manufacturerId ? { id: selection.manufacturerId, name: selection.manufacturerName ?? "" } : null}
-          onChange={(opt) => updateSelection("manufacturerId", opt?.id ?? null)}
+          onChange={(opt) => updateSelection("manufacturerId", opt as SeriesOption | null)}
           placeholder="Select manufacturer..."
           displayKey="name"
           showCode={false}
@@ -233,12 +240,12 @@ function Home() {
                         partNumber: partNumber!,
                         manufacturer: currentManufacturer?.manufacturer ?? "",
                         series: selection.series?.name ?? "",
-                        function: selection.function?.name ?? "",
-                        finish: selection.finish?.name ?? "",
-                        keyway: selection.keyway?.name ?? "",
+                        function: selection.options.function?.name ?? "",
+                        finish: selection.options.finish?.name ?? "",
+                        keyway: selection.options.keyway?.name ?? "",
                         pins: selection.pins?.toString() ?? "",
-                        handing: selection.handing?.name ?? "",
-                        backset: selection.backset?.name ?? "",
+                        handing: selection.options.handing?.name ?? "",
+                        backset: selection.options.backset?.name ?? "",
                         notes: "",
                       };
                       setSaveJobPart(sp);
@@ -274,28 +281,26 @@ function Home() {
               key="series"
               label="Series"
               options={currentManufacturer.products}
-              value={selection.series}
-              onChange={(opt) => updateSelection("series", opt as ProductSeries | null)}
+              value={selection.series ? { id: selection.series.series, name: selection.series.name, code: selection.series.series } : null}
+              onChange={(opt) => updateSelection("series", opt as unknown as SeriesOption | null)}
               placeholder="Select product series..."
               displayKey="name"
               showCode={false}
             />
 
-            {/* Other fields only appear once series is selected */}
+            {/* Dynamic option fields — only appear once series is selected */}
             {selection.series && activeFields.map((key) => {
-              const fieldDef = FIELD_DEFS[key];
-              if (!fieldDef) return null;
-              const options = fieldDef.getOptions(selection.series!) ?? [];
-              const currentValue = selection[key] as SeriesOption | null;
+              const options = selection.series?.options[key] ?? [];
+              const currentValue = selection.options[key] ?? null;
 
               return (
                 <SearchableSelect
                   key={key}
-                  label={fieldDef.label}
+                  label={getFieldLabel(key)}
                   options={options}
                   value={currentValue}
                   onChange={(opt) => updateSelection(key, opt as SeriesOption | null)}
-                  placeholder={fieldDef.placeholder}
+                  placeholder={getFieldPlaceholder(key)}
                   displayKey="name"
                 />
               );
@@ -303,14 +308,14 @@ function Home() {
           </div>
 
           {/* Pin Count Selector — only show if the selected keyway has multiple pin options */}
-          {selection.keyway?.availablePins && selection.keyway.availablePins.length > 0 && (
+          {selection.options.keyway?.availablePins && selection.options.keyway.availablePins.length > 0 && (
             <div className="mt-4">
               <label className="label-text">Pin Count</label>
               <div className="mt-1 flex flex-wrap gap-2">
-                {selection.keyway.availablePins.map((pin) => (
+                {selection.options.keyway.availablePins.map((pin) => (
                   <button
                     key={pin}
-                    onClick={() => updateSelection("pins", selection.pins === pin ? null : pin)}
+                    onClick={() => updateSelection("pins", selection.pins === pin ? null : pin as unknown as SeriesOption)}
                     className="rounded-lg px-4 py-2 text-sm font-medium transition-colors"
                     style={{
                       backgroundColor: selection.pins === pin
@@ -331,7 +336,7 @@ function Home() {
                 ))}
                 {selection.pins !== null && (
                   <button
-                    onClick={() => updateSelection("pins", null)}
+                    onClick={() => setSelection((prev) => ({ ...prev, pins: null }))}
                     className="rounded-lg px-3 py-2 text-xs transition-colors"
                     style={{
                       color: "var(--text-muted)",
@@ -343,9 +348,9 @@ function Home() {
                   </button>
                 )}
               </div>
-              {selection.keyway.availablePins.length === 1 && (
+              {selection.options.keyway.availablePins.length === 1 && (
                 <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
-                  Only {selection.keyway.availablePins[0]}-pin available for this keyway — auto-selected.
+                  Only {selection.options.keyway.availablePins[0]}-pin available for this keyway — auto-selected.
                 </p>
               )}
             </div>
@@ -444,43 +449,3 @@ function Home() {
     </div>
   );
 }
-
-// ── Field Definitions ──
-
-const FIELD_DEFS: Record<string, { label: string; placeholder: string; getOptions: (series: ProductSeries) => SeriesOption[] }> = {
-  function: {
-    label: "Function",
-    placeholder: "Select lock function...",
-    getOptions: (s) => s.options.function ?? [],
-  },
-  style: {
-    label: "Style",
-    placeholder: "Select style/design...",
-    getOptions: (s) => s.options.style ?? [],
-  },
-  grade: {
-    label: "Grade",
-    placeholder: "Select grade...",
-    getOptions: (s) => s.options.grade ?? [],
-  },
-  finish: {
-    label: "Finish",
-    placeholder: "Select finish...",
-    getOptions: (s) => s.options.finish ?? [],
-  },
-  keyway: {
-    label: "Keyway",
-    placeholder: "Select keyway...",
-    getOptions: (s) => s.options.keyway ?? [],
-  },
-  handing: {
-    label: "Handing",
-    placeholder: "Select handing...",
-    getOptions: (s) => s.options.handing ?? [],
-  },
-  backset: {
-    label: "Backset",
-    placeholder: "Select backset...",
-    getOptions: (s) => s.options.backset ?? [],
-  },
-};

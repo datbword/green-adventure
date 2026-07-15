@@ -24,18 +24,8 @@ export interface ProductSeries {
   partNumberPattern: string;
   pdfLinks: { label: string; url: string }[];
   diagramUrls: { label: string; url: string }[];
-  options: SeriesOptions;
+  options: Record<string, SeriesOption[]>;
   examples: string[];
-}
-
-export interface SeriesOptions {
-  function: SeriesOption[];
-  finish: SeriesOption[];
-  keyway: SeriesOption[];
-  handing: SeriesOption[];
-  backset: SeriesOption[];
-  style?: SeriesOption[];
-  grade?: SeriesOption[];
 }
 
 export interface SeriesOption {
@@ -50,14 +40,8 @@ export interface Selection {
   manufacturerId: string | null;
   manufacturerName: string | null;
   series: ProductSeries | null;
-  function: SeriesOption | null;
-  finish: SeriesOption | null;
-  keyway: SeriesOption | null;
   pins: number | null;
-  handing: SeriesOption | null;
-  backset: SeriesOption | null;
-  style: SeriesOption | null;
-  grade: SeriesOption | null;
+  options: Record<string, SeriesOption | null>;
 }
 
 export interface DataCache {
@@ -66,7 +50,7 @@ export interface DataCache {
 }
 
 export interface FieldConfig {
-  key: keyof Selection;
+  key: string;
   label: string;
   placeholder: string;
 }

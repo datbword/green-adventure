@@ -1,24 +1,86 @@
-import type { Selection, ProductSeries } from "~/types";
+import type { Selection, ProductSeries, SeriesOption } from "~/types";
+
+/**
+ * Human-readable labels for option keys.
+ */
+const FIELD_LABELS: Record<string, string> = {
+  function: "Function",
+  style: "Style",
+  grade: "Grade",
+  finish: "Finish",
+  keyway: "Keyway",
+  handing: "Handing",
+  backset: "Backset",
+  design: "Design",
+  force: "Force",
+  gradeCode: "Grade",
+  keysize: "Key Size",
+  model: "Model",
+  options: "Options",
+  product: "Product",
+  productCode: "Product",
+  series: "Series Code",
+  size: "Size",
+  tool: "Tool",
+  trim: "Trim",
+  type: "Type",
+  voltage: "Voltage",
+};
+
+/**
+ * Logical display order for option fields.
+ */
+const FIELD_ORDER: string[] = [
+  "function", "style", "grade", "gradeCode", "finish", "keyway",
+  "handing", "backset", "design", "product", "productCode", "model",
+  "type", "trim", "size", "force", "keysize", "voltage", "series",
+  "options", "tool",
+];
+
+/**
+ * Get a human-readable label for an option key.
+ */
+export function getFieldLabel(key: string): string {
+  return FIELD_LABELS[key] ?? key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, " $1");
+}
+
+/**
+ * Get a placeholder for a field.
+ */
+export function getFieldPlaceholder(key: string): string {
+  return `Select ${getFieldLabel(key).toLowerCase()}...`;
+}
+
+/**
+ * Get the logical display order index for a field key.
+ */
+export function getFieldOrder(key: string): number {
+  const idx = FIELD_ORDER.indexOf(key);
+  return idx >= 0 ? idx : FIELD_ORDER.length;
+}
 
 /**
  * Build a part number using the per-series partNumberPattern template.
- * Substitutes {functionCode}, {styleCode}, {gradeCode}, {finish}, {keyway}, {handing}, {backset}
- * with the selected codes. Missing codes are skipped (not substituted).
+ * Substitutes {fieldName} and {fieldNameCode} with the selected option's code.
  */
 export function buildPartNumber(
   selection: Selection,
   series: ProductSeries,
 ): string {
-  const codes: Record<string, string | undefined> = {
-    functionCode: selection.function?.code,
-    styleCode: selection.style?.code,
-    gradeCode: selection.grade?.code,
-    finish: selection.finish?.code,
-    keyway: selection.keyway?.code,
-    handing: selection.handing?.code,
-    backset: selection.backset?.code,
-    pins: selection.pins?.toString(),
-  };
+  const codes: Record<string, string | undefined> = {};
+
+  // Add all selected options by their code
+  for (const [key, opt] of Object.entries(selection.options)) {
+    if (opt?.code) {
+      codes[key] = opt.code;
+      codes[`${key}Code`] = opt.code;
+    }
+  }
+
+  // Add pins
+  if (selection.pins) {
+    codes.pins = selection.pins.toString();
+  }
 
   let result = series.partNumberPattern;
   for (const [key, code] of Object.entries(codes)) {
@@ -33,23 +95,26 @@ export function buildPartNumber(
 /**
  * Build a partial part number — works even when not all fields are selected.
  * Substitutes whatever codes are available and leaves placeholder markers
- * for missing fields. For example: "ND{functionCode}-{finish}" with only
- * function selected becomes "ND10-{finish}".
+ * for missing fields.
  */
 export function buildPartialPartNumber(
   selection: Selection,
   series: ProductSeries,
 ): string {
-  const codes: Record<string, string | undefined> = {
-    functionCode: selection.function?.code,
-    styleCode: selection.style?.code,
-    gradeCode: selection.grade?.code,
-    finish: selection.finish?.code,
-    keyway: selection.keyway?.code,
-    handing: selection.handing?.code,
-    backset: selection.backset?.code,
-    pins: selection.pins?.toString(),
-  };
+  const codes: Record<string, string | undefined> = {};
+
+  // Add all selected options by their code
+  for (const [key, opt] of Object.entries(selection.options)) {
+    if (opt?.code) {
+      codes[key] = opt.code;
+      codes[`${key}Code`] = opt.code;
+    }
+  }
+
+  // Add pins
+  if (selection.pins) {
+    codes.pins = selection.pins.toString();
+  }
 
   let result = series.partNumberPattern;
   for (const [key, code] of Object.entries(codes)) {
@@ -82,95 +147,46 @@ export function findCrossReferences(
 
 /**
  * Get the fields that should be rendered for this series.
- * Handing is optional — only included if the series has handing options.
- * Style and Grade are included if they exist in the series options.
+ * Returns ALL option keys from the series, in a logical display order.
  */
-export function getActiveFields(series: ProductSeries): Array<keyof Selection> {
-  const fields: Array<keyof Selection> = [];
-
-  fields.push("function");
-
-  if (series.options.style && series.options.style.length > 0) {
-    fields.push("style");
-  }
-  if (series.options.grade && series.options.grade.length > 0) {
-    fields.push("grade");
-  }
-
-  fields.push("finish");
-  fields.push("keyway");
-
-  if (series.options.handing && series.options.handing.length > 0) {
-    fields.push("handing");
-  }
-
-  fields.push("backset");
-
-  return fields;
+export function getActiveFields(series: ProductSeries): string[] {
+  const keys = Object.keys(series.options || {});
+  // Sort by logical order
+  keys.sort((a, b) => getFieldOrder(a) - getFieldOrder(b));
+  return keys;
 }
 
 /**
  * Check if all required fields are selected for the given series.
- * Handing is optional — only required if handling options exist.
- * Style and Grade are optional — only required if they exist.
  */
 export function isComplete(selection: Selection): boolean {
   if (!selection.series) return false;
-  if (!selection.function) return false;
-  if (!selection.finish) return false;
-  if (!selection.keyway) return false;
-  if (!selection.backset) return false;
-
-  if (selection.series.options.style && selection.series.options.style.length > 0 && !selection.style) return false;
-  if (selection.series.options.grade && selection.series.options.grade.length > 0 && !selection.grade) return false;
-
-  // Handing is optional
-  if (selection.series.options.handing && selection.series.options.handing.length > 0 && !selection.handing) return false;
-
+  const activeFields = getActiveFields(selection.series);
+  for (const key of activeFields) {
+    if (!selection.options[key]) return false;
+  }
   // Pin count is required if the selected keyway has multiple pin options
-  if (selection.keyway?.availablePins && selection.keyway.availablePins.length > 1 && !selection.pins) return false;
-
+  const keyway = selection.options.keyway;
+  if (keyway?.availablePins && keyway.availablePins.length > 1 && !selection.pins) return false;
   return true;
 }
 
 /**
  * Get the count of total selectable fields and the count of selected fields.
- * Handing not counted if the series has no handing options.
- * Style/Grade not counted if they don't exist.
  */
 export function getFieldCounts(series: ProductSeries | null, selection: Selection): { total: number; selected: number } {
   if (!series) return { total: 0, selected: 0 };
 
-  const requiredFields: Array<(s: Selection) => boolean> = [
-    (s) => s.function !== null,
-    (s) => s.finish !== null,
-    (s) => s.keyway !== null,
-    (s) => s.backset !== null,
-  ];
-
-  // Handing is optional
-  if (series.options.handing && series.options.handing.length > 0) {
-    requiredFields.push((s) => s.handing !== null);
-  }
-
-  // Style if it exists
-  if (series.options.style && series.options.style.length > 0) {
-    requiredFields.push((s) => s.style !== null);
-  }
-
-  // Grade if it exists
-  if (series.options.grade && series.options.grade.length > 0) {
-    requiredFields.push((s) => s.grade !== null);
-  }
+  const activeFields = getActiveFields(series);
+  let total = activeFields.length;
+  let selected = activeFields.filter((key) => selection.options[key] !== null && selection.options[key] !== undefined).length;
 
   // Pin count is required if the selected keyway has multiple pin options
-  // We check the selection's keyway, not the series options, since availablePins is per-keyway
-  if (selection.keyway?.availablePins && selection.keyway.availablePins.length > 1) {
-    requiredFields.push((s) => s.pins !== null);
+  const keyway = selection.options.keyway;
+  if (keyway?.availablePins && keyway.availablePins.length > 1) {
+    total += 1;
+    if (selection.pins !== null) selected += 1;
   }
-
-  const total = requiredFields.length;
-  const selected = requiredFields.filter((f) => f(selection)).length;
 
   return { total, selected };
 }
