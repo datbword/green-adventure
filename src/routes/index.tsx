@@ -112,6 +112,55 @@ function Home() {
     }
   }, [selection.options.keyway]);
 
+  // Auto-select single-option fields
+  useEffect(() => {
+    if (!selection.series) return;
+    const activeFields = getActiveFields(selection.series);
+    const updated: Record<string, SeriesOption | null> = {};
+    let changed = false;
+    for (const key of activeFields) {
+      const options = selection.series.options[key];
+      if (options && options.length === 1 && !selection.options[key]) {
+        updated[key] = options[0];
+        changed = true;
+      }
+    }
+    if (changed) {
+      setSelection((prev) => ({
+        ...prev,
+        options: { ...prev.options, ...updated },
+      }));
+    }
+  }, [selection.series]);
+
+  // Detect conflicts: selections that are mutually exclusive
+  const warnings = useMemo(() => {
+    const w: string[] = [];
+    if (!selection.series) return w;
+    const activeFields = getActiveFields(selection.series);
+    for (const key of activeFields) {
+      // Check if a field has options but selected value doesn't match any
+      const selected = selection.options[key];
+      if (selected) {
+        const options = selection.series.options[key];
+        if (options && options.length > 0) {
+          const stillExists = options.some((o) => o.code === selected.code);
+          if (!stillExists) {
+            w.push(`${getFieldLabel(key)} "${selected.name}" is no longer available — please re-select.`);
+          }
+        }
+      }
+    }
+    // Pin count vs keyway warning
+    const keyway = selection.options.keyway;
+    if (keyway?.availablePins && keyway.availablePins.length > 1 && selection.pins !== null) {
+      if (!keyway.availablePins.includes(selection.pins)) {
+        w.push(`Pin count ${selection.pins} is not available for selected keyway "${keyway.name}".`);
+      }
+    }
+    return w;
+  }, [selection]);
+
   const currentManufacturer = selection.manufacturerId ? data.manufacturerFiles[selection.manufacturerId] : null;
 
   // Determine active fields based on the selected series
@@ -272,6 +321,22 @@ function Home() {
                 </section>
               ) : null}
             </>
+          )}
+
+          {/* Proactive warnings */}
+          {warnings.length > 0 && (
+            <div className="mb-4 space-y-1">
+              {warnings.map((w, i) => (
+                <p key={i} className="rounded-lg px-3 py-2 text-xs font-medium"
+                  style={{
+                    backgroundColor: "color-mix(in srgb, #d32f2f 10%, transparent)",
+                    color: "#d32f2f",
+                    border: "1px solid color-mix(in srgb, #d32f2f 20%, transparent)",
+                  }}>
+                  ⚠ {w}
+                </p>
+              ))}
+            </div>
           )}
 
           {/* Dropdown Fields */}
