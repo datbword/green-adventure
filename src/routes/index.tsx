@@ -72,13 +72,14 @@ function Home() {
 
   const [selection, setSelection] = useState<Selection>({ ...defaultSelection });
 
-  const updateSelection = (key: string, value: SeriesOption | null) => {
+  const updateSelection = (key: string, value: SeriesOption | string | null) => {
     // When manufacturer changes, reset all downstream selections
     if (key === "manufacturerId") {
+      const id = value as string | null;
       setSelection({
         ...defaultSelection,
-        manufacturerId: value as unknown as string | null,
-        manufacturerName: value ? data.manufacturers.find((m) => m.id === value)?.name ?? null : null,
+        manufacturerId: id,
+        manufacturerName: id ? data.manufacturers.find((m) => m.id === id)?.name ?? null : null,
       });
       return;
     }
@@ -235,7 +236,7 @@ function Home() {
           label="Brand"
           options={data.manufacturers}
           value={selection.manufacturerId ? { id: selection.manufacturerId, name: selection.manufacturerName ?? "" } : null}
-          onChange={(opt) => updateSelection("manufacturerId", opt as SeriesOption | null)}
+          onChange={(opt) => updateSelection("manufacturerId", opt?.id ?? null)}
           placeholder="Select manufacturer..."
           displayKey="name"
           showCode={false}
