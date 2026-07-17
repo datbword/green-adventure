@@ -2,6 +2,9 @@
  * Lock function definitions with SVG diagram generators.
  * Each function has a code, name, description, and a lockType
  * that determines which hardware silhouette to render.
+ *
+ * SVG diagrams show a door cross-section from above with lever handles,
+ * key cylinders, push buttons, thumb turns, etc. — like manufacturer spec sheets.
  */
 
 export interface LockFunction {
@@ -240,20 +243,20 @@ export const LOCK_FUNCTIONS: LockFunction[] = [
 ];
 
 /**
- * Generate an SVG hardware silhouette diagram for a given lock function.
- * Shows actual lock hardware instead of a door schematic with icons.
+ * Generate an SVG diagram for a given lock function.
+ * Uses a door cross-section from above view with lever handles,
+ * key cylinders, push buttons, etc. — like manufacturer spec sheets.
  */
 export function renderDoorDiagram(fn: LockFunction): string {
-  const w = 360;
-  const h = 260;
+  const w = 380;
+  const h = 250;
   const midX = w / 2;
-  const doorY = 20;
-  const doorH = h - 40;
-  const doorW = 300;
+  const doorY = 55;
+  const doorH = 90;
+  const doorW = 200;
   const doorX = (w - doorW) / 2;
-  const centerLine = doorX + doorW / 2;
+  const leverY = doorY + doorH / 2;
 
-  // Colors
   const outline = "#333";
   const fill = "#f0f0f0";
   const highlight = "#999";
@@ -263,356 +266,310 @@ export function renderDoorDiagram(fn: LockFunction): string {
 
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="100%" height="100%">`;
 
-  // Subtle door outline as context
-  svg += `<rect x="${doorX}" y="${doorY}" width="${doorW}" height="${doorH}" rx="4" fill="white" stroke="${mutedText}" stroke-width="1" stroke-dasharray="4,3"/>`;
-  // Center line
-  svg += `<line x1="${centerLine}" y1="${doorY + 4}" x2="${centerLine}" y2="${doorY + doorH - 4}" stroke="${mutedText}" stroke-width="0.5" stroke-dasharray="3,3"/>`;
+  // ── Door cross-section from above ──
+  // Door body (thick rectangle)
+  svg += `<rect x="${doorX}" y="${doorY}" width="${doorW}" height="${doorH}" rx="3" fill="white" stroke="${outline}" stroke-width="2"/>`;
+  // Door thickness lines (top and bottom edge lines for 3D effect)
+  svg += `<line x1="${doorX}" y1="${doorY + 8}" x2="${doorX + doorW}" y2="${doorY + 8}" stroke="${mutedText}" stroke-width="0.5"/>`;
+  svg += `<line x1="${doorX}" y1="${doorY + doorH - 8}" x2="${doorX + doorW}" y2="${doorY + doorH - 8}" stroke="${mutedText}" stroke-width="0.5"/>`;
+
   // Outside/Inside labels
-  svg += `<text x="${doorX + 20}" y="${doorY + 18}" font-size="9" fill="${mutedText}" font-family="Arial, sans-serif">OUTSIDE</text>`;
-  svg += `<text x="${doorX + doorW - 65}" y="${doorY + 18}" font-size="9" fill="${mutedText}" font-family="Arial, sans-serif">INSIDE</text>`;
+  svg += `<text x="${doorX - 10}" y="${doorY + doorH / 2 + 4}" text-anchor="end" font-size="11" fill="${textColor}" font-family="Arial, sans-serif" font-weight="bold">OUTSIDE</text>`;
+  svg += `<text x="${doorX + doorW + 10}" y="${doorY + doorH / 2 + 4}" text-anchor="start" font-size="11" fill="${textColor}" font-family="Arial, sans-serif" font-weight="bold">INSIDE</text>`;
 
-  // Render the appropriate hardware silhouette
-  const lockBodyX = midX - 50;
-  const lockBodyY = doorY + 80;
-  const lockBodyW = 100;
-  const lockBodyH = 70;
+  // ── Lever handles ──
+  // Outside lever
+  const leverLen = 28;
+  const leverThick = 4;
+  const leverGap = 6;
 
+  // Outside lever (left side)
+  svg += `<rect x="${doorX - leverLen}" y="${leverY - leverThick / 2}" width="${leverLen}" height="${leverThick}" rx="2" fill="${fill}" stroke="${outline}" stroke-width="1.5"/>`;
+  // Lever tip (slight curve/drop)
+  svg += `<circle cx="${doorX - leverLen}" cy="${leverY}" r="3" fill="${fill}" stroke="${outline}" stroke-width="1.5"/>`;
+
+  // Inside lever (right side)
+  svg += `<rect x="${doorX + doorW}" y="${leverY - leverThick / 2}" width="${leverLen}" height="${leverThick}" rx="2" fill="${fill}" stroke="${outline}" stroke-width="1.5"/>`;
+  svg += `<circle cx="${doorX + doorW + leverLen}" cy="${leverY}" r="3" fill="${fill}" stroke="${outline}" stroke-width="1.5"/>`;
+
+  // Center line on door (latch line)
+  svg += `<line x1="${midX}" y1="${doorY + 10}" x2="${midX}" y2="${doorY + doorH - 10}" stroke="${mutedText}" stroke-width="0.5" stroke-dasharray="3,3"/>`;
+
+  // ── Draw function-specific components ──
   switch (fn.lockType) {
     case "passage":
-      svg = renderPassageLock(svg, lockBodyX, lockBodyY, lockBodyW, lockBodyH, outline, fill, highlight, highlightFill, textColor);
+      svg = drawPassage(svg, fn, doorX, doorY, doorW, doorH, leverY, outline, fill, highlight, highlightFill, textColor);
       break;
     case "privacy":
-      svg = renderPrivacyLock(svg, lockBodyX, lockBodyY, lockBodyW, lockBodyH, fn, outline, fill, highlight, highlightFill, textColor);
+      svg = drawPrivacy(svg, fn, doorX, doorY, doorW, doorH, leverY, outline, fill, highlight, highlightFill, textColor);
       break;
     case "cylindrical":
-      svg = renderCylindricalLock(svg, lockBodyX, lockBodyY, lockBodyW, lockBodyH, fn, outline, fill, highlight, highlightFill, textColor);
+      svg = drawCylindrical(svg, fn, doorX, doorY, doorW, doorH, leverY, outline, fill, highlight, highlightFill, textColor);
       break;
     case "exit-device":
-      svg = renderExitDevice(svg, lockBodyX, lockBodyY, lockBodyW, lockBodyH, fn, outline, fill, highlight, highlightFill, textColor);
+      svg = drawExitDevice(svg, fn, doorX, doorY, doorW, doorH, leverY, outline, fill, highlight, highlightFill, textColor);
       break;
     case "deadbolt":
-      svg = renderDeadbolt(svg, lockBodyX, lockBodyY, lockBodyW, lockBodyH, fn, outline, fill, highlight, highlightFill, textColor);
+      svg = drawDeadbolt(svg, fn, doorX, doorY, doorW, doorH, leverY, outline, fill, highlight, highlightFill, textColor);
       break;
     case "hotel":
-      svg = renderHotelLock(svg, lockBodyX, lockBodyY, lockBodyW, lockBodyH, fn, outline, fill, highlight, highlightFill, textColor);
+      svg = drawHotel(svg, fn, doorX, doorY, doorW, doorH, leverY, outline, fill, highlight, highlightFill, textColor);
       break;
     case "dummy":
-      svg = renderDummyTrim(svg, lockBodyX, lockBodyY, lockBodyW, lockBodyH, fn, outline, fill, highlight, highlightFill, textColor);
+      svg = drawDummy(svg, fn, doorX, doorY, doorW, doorH, leverY, outline, fill, highlight, highlightFill, textColor);
       break;
     case "electric":
-      svg = renderElectricLock(svg, lockBodyX, lockBodyY, lockBodyW, lockBodyH, fn, outline, fill, highlight, highlightFill, textColor);
+      svg = drawElectric(svg, fn, doorX, doorY, doorW, doorH, leverY, outline, fill, highlight, highlightFill, textColor);
       break;
   }
 
-  // Function code label at bottom
-  svg += `<text x="${midX}" y="${doorY + doorH - 8}" text-anchor="middle" font-size="11" fill="${mutedText}" font-family="Arial, sans-serif">${fn.code} — ${fn.name}</text>`;
+  // Function code at bottom
+  svg += `<text x="${midX}" y="${doorY + doorH + 45}" text-anchor="middle" font-size="12" fill="${mutedText}" font-family="Arial, sans-serif">${fn.code} — ${fn.name}</text>`;
 
   svg += `</svg>`;
   return svg;
 }
 
-// ── Render Helpers ──
+// ── Draw Helpers ──
 
-function renderPassageLock(
-  svg: string, x: number, y: number, w: number, h: number,
+function drawKeyCylinder(svg: string, x: number, y: number, label: string, outline: string, highlightFill: string, textColor: string): string {
+  svg += `<circle cx="${x}" cy="${y}" r="10" fill="${highlightFill}" stroke="${outline}" stroke-width="1.5"/>`;
+  svg += `<rect x="${x - 3}" y="${y - 2}" width="6" height="4" rx="1" fill="${outline}"/>`;
+  svg += `<text x="${x}" y="${y + 22}" text-anchor="middle" font-size="8" fill="${textColor}" font-family="Arial, sans-serif">${label}</text>`;
+  return svg;
+}
+
+function drawPushButton(svg: string, x: number, y: number, label: string, outline: string, highlightFill: string, textColor: string): string {
+  svg += `<rect x="${x - 8}" y="${y - 8}" width="16" height="16" rx="4" fill="${highlightFill}" stroke="${outline}" stroke-width="1.5"/>`;
+  svg += `<text x="${x}" y="${y + 3}" text-anchor="middle" font-size="9" fill="white" font-family="Arial, sans-serif" font-weight="bold">P</text>`;
+  svg += `<text x="${x}" y="${y + 22}" text-anchor="middle" font-size="8" fill="${textColor}" font-family="Arial, sans-serif">${label}</text>`;
+  return svg;
+}
+
+function drawThumbTurn(svg: string, x: number, y: number, label: string, outline: string, highlightFill: string, textColor: string): string {
+  svg += `<ellipse cx="${x}" cy="${y}" rx="8" ry="6" fill="${highlightFill}" stroke="${outline}" stroke-width="1.5"/>`;
+  svg += `<line x1="${x - 5}" y1="${y}" x2="${x + 5}" y2="${y}" stroke="${outline}" stroke-width="2"/>`;
+  svg += `<text x="${x}" y="${y + 18}" text-anchor="middle" font-size="8" fill="${textColor}" font-family="Arial, sans-serif">${label}</text>`;
+  return svg;
+}
+
+function drawEmergencyRelease(svg: string, x: number, y: number, label: string, outline: string, highlightFill: string, textColor: string): string {
+  svg += `<rect x="${x - 6}" y="${y - 6}" width="12" height="12" rx="2" fill="${highlightFill}" stroke="${outline}" stroke-width="1.5"/>`;
+  svg += `<text x="${x}" y="${y + 3}" text-anchor="middle" font-size="8" fill="${outline}" font-family="Arial, sans-serif">⌕</text>`;
+  svg += `<text x="${x}" y="${y + 20}" text-anchor="middle" font-size="8" fill="${textColor}" font-family="Arial, sans-serif">${label}</text>`;
+  return svg;
+}
+
+function drawLabel(svg: string, x: number, y: number, text: string, color: string, fontSize: number = 9): string {
+  svg += `<text x="${x}" y="${y}" text-anchor="middle" font-size="${fontSize}" fill="${color}" font-family="Arial, sans-serif">${text}</text>`;
+  return svg;
+}
+
+function drawLineLabel(svg: string, x: number, y: number, text: string, color: string): string {
+  svg += `<text x="${x}" y="${y}" text-anchor="middle" font-size="8" fill="${color}" font-family="Arial, sans-serif">${text}</text>`;
+  return svg;
+}
+
+// ── Function-specific renderers ──
+
+function drawPassage(
+  svg: string, fn: LockFunction, doorX: number, doorY: number, doorW: number, doorH: number, leverY: number,
   outline: string, fill: string, highlight: string, highlightFill: string, textColor: string,
 ): string {
-  // Lock chassis body
-  svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${fill}" stroke="${outline}" stroke-width="1.5"/>`;
-  // Free indicator — both sides
-  svg += `<text x="${x + w / 2}" y="${y + h / 2 + 4}" text-anchor="middle" font-size="10" fill="${highlight}" font-family="Arial, sans-serif">Always Unlocked</text>`;
-  // Label
-  svg += `<text x="${x + w / 2}" y="${y - 8}" text-anchor="middle" font-size="8" fill="${textColor}" font-family="Arial, sans-serif">Passage Lock Body</text>`;
-  // Both sides free
-  svg += `<text x="${x - 30}" y="${y + h / 2 + 4}" text-anchor="middle" font-size="8" fill="${textColor}" font-family="Arial, sans-serif">Free</text>`;
-  svg += `<text x="${x + w + 30}" y="${y + h / 2 + 4}" text-anchor="middle" font-size="8" fill="${textColor}" font-family="Arial, sans-serif">Free</text>`;
-  // Small arrows showing free movement on both sides
-  svg = arrowLeft(svg, x - 5, y + h / 2, highlight);
-  svg = arrowRight(svg, x + w + 5, y + h / 2, highlight);
+  const midX = doorX + doorW / 2;
+  // Free labels on both sides
+  svg = drawLabel(svg, doorX - 50, leverY - 15, "Always", highlight);
+  svg = drawLabel(svg, doorX - 50, leverY - 3, "Free", highlight);
+  svg = drawLabel(svg, doorX + doorW + 50, leverY - 15, "Always", highlight);
+  svg = drawLabel(svg, doorX + doorW + 50, leverY - 3, "Free", highlight);
+  // Center label
+  svg = drawLabel(svg, midX, doorY + doorH + 20, "Both levers always free", textColor, 9);
   return svg;
 }
 
-function renderPrivacyLock(
-  svg: string, x: number, y: number, w: number, h: number,
-  fn: LockFunction, outline: string, fill: string, highlight: string, highlightFill: string, textColor: string,
+function drawPrivacy(
+  svg: string, fn: LockFunction, doorX: number, doorY: number, doorW: number, doorH: number, leverY: number,
+  outline: string, fill: string, highlight: string, highlightFill: string, textColor: string,
 ): string {
-  // Lock chassis body
-  svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${fill}" stroke="${outline}" stroke-width="1.5"/>`;
-
-  // Left side: Emergency release (if applicable)
+  const midX = doorX + doorW / 2;
+  // Emergency release on outside
   if (fn.hasEmergencyRelease) {
-    // Small slot/tool release
-    svg += `<rect x="${x - 18}" y="${y + h / 2 - 8}" width="16" height="16" rx="2" fill="${highlightFill}" stroke="${outline}" stroke-width="1"/>`;
-    svg += `<text x="${x - 10}" y="${y + h / 2 + 4}" text-anchor="middle" font-size="6" fill="white" font-family="Arial, sans-serif">⌕</text>`;
-    svg += `<text x="${x - 10}" y="${y + h / 2 + 20}" text-anchor="middle" font-size="7" fill="${textColor}" font-family="Arial, sans-serif">Emergency Release</text>`;
+    svg = drawEmergencyRelease(svg, doorX - 50, leverY, "Emergency Release", outline, highlightFill, textColor);
   }
-
-  // Right side: Push button
+  // Push button on inside
   if (fn.hasPushButton) {
-    svg += `<rect x="${x + w + 2}" y="${y + h / 2 - 10}" width="20" height="20" rx="5" fill="${highlightFill}" stroke="${outline}" stroke-width="1.5"/>`;
-    svg += `<text x="${x + w + 12}" y="${y + h / 2 + 4}" text-anchor="middle" font-size="8" fill="white" font-family="Arial, sans-serif">P</text>`;
-    svg += `<text x="${x + w + 12}" y="${y + h / 2 + 20}" text-anchor="middle" font-size="7" fill="${textColor}" font-family="Arial, sans-serif">Push Button</text>`;
+    svg = drawPushButton(svg, doorX + doorW + 50, leverY, "Push to Lock", outline, highlightFill, textColor);
   }
-
-  // Label
-  svg += `<text x="${x + w / 2}" y="${y - 8}" text-anchor="middle" font-size="8" fill="${textColor}" font-family="Arial, sans-serif">Privacy Lock</text>`;
+  svg = drawLabel(svg, midX, doorY + doorH + 20, "Privacy lock — unlock from outside with tool", textColor, 9);
   return svg;
 }
 
-function renderCylindricalLock(
-  svg: string, x: number, y: number, w: number, h: number,
-  fn: LockFunction, outline: string, fill: string, highlight: string, highlightFill: string, textColor: string,
+function drawCylindrical(
+  svg: string, fn: LockFunction, doorX: number, doorY: number, doorW: number, doorH: number, leverY: number,
+  outline: string, fill: string, highlight: string, highlightFill: string, textColor: string,
 ): string {
-  // Lock chassis body
-  svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${fill}" stroke="${outline}" stroke-width="1.5"/>`;
+  const midX = doorX + doorW / 2;
+  const compY = leverY;
 
-  // Left side: Key cylinder
+  // Key cylinder on outside
   if (fn.hasKeyOutside) {
-    // Cylinder circle
-    svg += `<circle cx="${x - 14}" cy="${y + h / 2}" r="12" fill="${highlightFill}" stroke="${outline}" stroke-width="1.5"/>`;
-    // Keyway slot
-    svg += `<rect x="${x - 17}" y="${y + h / 2 - 2}" width="6" height="4" rx="1" fill="${outline}"/>`;
-    svg += `<text x="${x - 14}" y="${y + h / 2 + 26}" text-anchor="middle" font-size="7" fill="${textColor}" font-family="Arial, sans-serif">Key Outside</text>`;
+    svg = drawKeyCylinder(svg, doorX - 50, compY, fn.isAlwaysLocked ? "Key Outside (Locked)" : "Key Outside", outline, highlightFill, textColor);
   }
 
-  // Right side: Push button or thumb turn
-  if (fn.hasPushButton) {
-    svg += `<rect x="${x + w + 2}" y="${y + h / 2 - 10}" width="20" height="20" rx="5" fill="${highlightFill}" stroke="${outline}" stroke-width="1.5"/>`;
-    svg += `<text x="${x + w + 12}" y="${y + h / 2 + 4}" text-anchor="middle" font-size="8" fill="white" font-family="Arial, sans-serif">P</text>`;
-    svg += `<text x="${x + w + 12}" y="${y + h / 2 + 20}" text-anchor="middle" font-size="7" fill="${textColor}" font-family="Arial, sans-serif">Push Button</text>`;
-  } else if (fn.hasThumbTurn) {
-    // Thumb turn — oval shape
-    svg += `<ellipse cx="${x + w + 12}" cy="${y + h / 2}" rx="9" ry="7" fill="${highlightFill}" stroke="${outline}" stroke-width="1.5"/>`;
-    svg += `<line x1="${x + w + 6}" y1="${y + h / 2}" x2="${x + w + 18}" y2="${y + h / 2}" stroke="${outline}" stroke-width="2"/>`;
-    svg += `<text x="${x + w + 12}" y="${y + h / 2 + 20}" text-anchor="middle" font-size="7" fill="${textColor}" font-family="Arial, sans-serif">Thumb Turn</text>`;
-  }
-
-  // If key inside
+  // Key cylinder on inside
   if (fn.hasKeyInside) {
-    svg += `<circle cx="${x + w + 14}" cy="${y + h / 2}" r="12" fill="${highlightFill}" stroke="${outline}" stroke-width="1.5" stroke-dasharray="3,2"/>`;
-    svg += `<rect x="${x + w + 11}" y="${y + h / 2 - 2}" width="6" height="4" rx="1" fill="${outline}"/>`;
-    svg += `<text x="${x + w + 14}" y="${y + h / 2 + 26}" text-anchor="middle" font-size="7" fill="${textColor}" font-family="Arial, sans-serif">Key Inside</text>`;
+    svg = drawKeyCylinder(svg, doorX + doorW + 50, compY, "Key Inside", outline, highlightFill, textColor);
   }
 
-  // Latch bolt extending from the lock body
-  const latchX = x + w - 2;
-  const latchY = y + h / 2 - 6;
+  // Push button on inside
+  if (fn.hasPushButton) {
+    svg = drawPushButton(svg, doorX + doorW + 50, compY, fn.hasKeyInside ? "Push to Lock" : "Push Button", outline, highlightFill, textColor);
+  }
+
+  // Thumb turn on inside
+  if (fn.hasThumbTurn) {
+    svg = drawThumbTurn(svg, doorX + doorW + 50, compY, "Thumb Turn", outline, highlightFill, textColor);
+  }
+
+  // Latch bolt indicator
   if (fn.isAlwaysLocked) {
-    // Extended latch (locked)
-    svg += `<rect x="${latchX}" y="${latchY}" width="12" height="12" rx="2" fill="${highlightFill}" stroke="${outline}" stroke-width="1.5"/>`;
-    svg += `<text x="${latchX + 6}" y="${latchY + 24}" text-anchor="middle" font-size="6" fill="${textColor}" font-family="Arial, sans-serif">Locked</text>`;
+    svg = drawLineLabel(svg, midX, doorY + doorH + 10, "Latch — Locked", "#d32f2f");
   } else if (fn.isAlwaysFree) {
-    // Retracted latch (free)
-    svg += `<rect x="${latchX}" y="${latchY}" width="6" height="12" rx="1" fill="${fill}" stroke="${highlight}" stroke-width="1"/>`;
-    svg += `<text x="${latchX + 3}" y="${latchY + 24}" text-anchor="middle" font-size="6" fill="${textColor}" font-family="Arial, sans-serif">Free</text>`;
+    svg = drawLineLabel(svg, midX, doorY + doorH + 10, "Latch — Free", "#2e7d32");
   } else {
-    // Normal latch
-    svg += `<rect x="${latchX}" y="${latchY}" width="8" height="12" rx="1.5" fill="${highlightFill}" stroke="${outline}" stroke-width="1"/>`;
+    svg = drawLineLabel(svg, midX, doorY + doorH + 10, "Latch", textColor);
   }
 
-  // Label
-  svg += `<text x="${x + w / 2}" y="${y - 8}" text-anchor="middle" font-size="8" fill="${textColor}" font-family="Arial, sans-serif">Cylindrical Lock</text>`;
   return svg;
 }
 
-function renderExitDevice(
-  svg: string, x: number, y: number, w: number, h: number,
-  fn: LockFunction, outline: string, fill: string, highlight: string, highlightFill: string, textColor: string,
+function drawExitDevice(
+  svg: string, fn: LockFunction, doorX: number, doorY: number, doorW: number, doorH: number, leverY: number,
+  outline: string, fill: string, highlight: string, highlightFill: string, textColor: string,
 ): string {
-  // Door outline (already drawn, but add a subtle push bar area)
+  const midX = doorX + doorW / 2;
 
-  // Push bar — horizontal bar across the door
-  const barY = y + 20;
-  const barH = 16;
-  const barW = w - 20;
-  const barX = x + 10;
-
-  // Push bar mounting brackets
-  svg += `<rect x="${barX}" y="${barY}" width="8" height="${barH}" rx="2" fill="${highlight}" stroke="${outline}" stroke-width="1"/>`;
-  svg += `<rect x="${barX + barW - 8}" y="${barY}" width="8" height="${barH}" rx="2" fill="${highlight}" stroke="${outline}" stroke-width="1"/>`;
-
-  // Push bar itself
-  svg += `<rect x="${barX + 8}" y="${barY + 3}" width="${barW - 16}" height="${barH - 6}" rx="3" fill="${highlightFill}" stroke="${outline}" stroke-width="1.5"/>`;
-  svg += `<text x="${barX + barW / 2}" y="${barY + barH / 2 + 1}" text-anchor="middle" font-size="8" fill="white" font-family="Arial, sans-serif">PUSH BAR</text>`;
-
-  // Key cylinder on outside (left)
+  // Key cylinder on outside
   if (fn.hasKeyOutside) {
-    const cylX = x - 14;
-    const cylY = y + h / 2 + 20;
-    svg += `<circle cx="${cylX}" cy="${cylY}" r="10" fill="${highlightFill}" stroke="${outline}" stroke-width="1.5"/>`;
-    svg += `<rect x="${cylX - 3}" y="${cylY - 2}" width="6" height="4" rx="1" fill="${outline}"/>`;
-    svg += `<text x="${cylX}" y="${cylY + 22}" text-anchor="middle" font-size="7" fill="${textColor}" font-family="Arial, sans-serif">Key Cylinder</text>`;
+    svg = drawKeyCylinder(svg, doorX - 50, leverY, "Key Cylinder", outline, highlightFill, textColor);
   }
 
-  // Electrified indicator
+  // Push bar on inside (shown as thick horizontal bar across the door)
+  const barY = doorY + doorH + 8;
+  const barW = doorW - 20;
+  const barX = doorX + 10;
+  svg += `<rect x="${barX}" y="${barY}" width="${barW}" height="7" rx="2" fill="${highlightFill}" stroke="${outline}" stroke-width="1"/>`;
+  svg = drawLineLabel(svg, midX, barY + 18, "Push Bar → Free Exit", textColor);
+
+  // Electrified
   if (fn.isElectrified) {
-    svg += `<text x="${x + w + 20}" y="${y + 15}" font-size="8" fill="${outline}" font-family="Arial, sans-serif">⚡</text>`;
-    svg += `<text x="${x + w + 20}" y="${y + 28}" text-anchor="middle" font-size="6" fill="${textColor}" font-family="Arial, sans-serif">Electrified</text>`;
+    svg = drawLineLabel(svg, doorX + doorW + 50, leverY, "⚡ Electrified", outline);
   }
 
-  // Latch mechanism at top
-  svg += `<rect x="${x + w / 2 - 5}" y="${y - 5}" width="10" height="8" rx="2" fill="${highlightFill}" stroke="${outline}" stroke-width="1"/>`;
-  svg += `<text x="${x + w / 2}" y="${y - 10}" text-anchor="middle" font-size="7" fill="${textColor}" font-family="Arial, sans-serif">Latch</text>`;
-
-  // Label
-  svg += `<text x="${x + w / 2}" y="${y + h + 12}" text-anchor="middle" font-size="8" fill="${textColor}" font-family="Arial, sans-serif">Exit Device</text>`;
   return svg;
 }
 
-function renderDeadbolt(
-  svg: string, x: number, y: number, w: number, h: number,
-  fn: LockFunction, outline: string, fill: string, highlight: string, highlightFill: string, textColor: string,
+function drawDeadbolt(
+  svg: string, fn: LockFunction, doorX: number, doorY: number, doorW: number, doorH: number, leverY: number,
+  outline: string, fill: string, highlight: string, highlightFill: string, textColor: string,
 ): string {
-  // Deadbolt body (narrower, taller)
-  const bodyW = 60;
-  const bodyX = x + (w - bodyW) / 2;
-  svg += `<rect x="${bodyX}" y="${y + 10}" width="${bodyW}" height="${h - 20}" rx="4" fill="${fill}" stroke="${outline}" stroke-width="1.5"/>`;
+  const midX = doorX + doorW / 2;
 
-  // Key cylinder on left
+  // Key cylinder outside
   if (fn.hasKeyOutside) {
-    svg += `<circle cx="${bodyX - 14}" cy="${y + h / 2}" r="12" fill="${highlightFill}" stroke="${outline}" stroke-width="1.5"/>`;
-    svg += `<rect x="${bodyX - 17}" y="${y + h / 2 - 2}" width="6" height="4" rx="1" fill="${outline}"/>`;
-    svg += `<text x="${bodyX - 14}" y="${y + h / 2 + 26}" text-anchor="middle" font-size="7" fill="${textColor}" font-family="Arial, sans-serif">Key Cylinder</text>`;
+    svg = drawKeyCylinder(svg, doorX - 50, leverY, "Key Cylinder", outline, highlightFill, textColor);
   }
 
-  // Thumb turn on right
+  // Thumb turn inside
   if (fn.hasThumbTurn) {
-    svg += `<ellipse cx="${bodyX + bodyW + 14}" cy="${y + h / 2}" rx="9" ry="7" fill="${highlightFill}" stroke="${outline}" stroke-width="1.5"/>`;
-    svg += `<line x1="${bodyX + bodyW + 8}" y1="${y + h / 2}" x2="${bodyX + bodyW + 20}" y2="${y + h / 2}" stroke="${outline}" stroke-width="2"/>`;
-    svg += `<text x="${bodyX + bodyW + 14}" y="${y + h / 2 + 20}" text-anchor="middle" font-size="7" fill="${textColor}" font-family="Arial, sans-serif">Thumb Turn</text>`;
+    svg = drawThumbTurn(svg, doorX + doorW + 50, leverY, "Thumb Turn", outline, highlightFill, textColor);
   }
 
-  // Deadbolt latch extending from the body
-  const latchX = bodyX + bodyW - 2;
-  const latchY = y + h / 2 - 6;
-  svg += `<rect x="${latchX}" y="${latchY}" width="14" height="12" rx="2" fill="${highlightFill}" stroke="${outline}" stroke-width="1.5"/>`;
-  svg += `<text x="${latchX + 7}" y="${latchY + 24}" text-anchor="middle" font-size="6" fill="${textColor}" font-family="Arial, sans-serif">Deadbolt</text>`;
-
-  // Label
-  svg += `<text x="${bodyX + bodyW / 2}" y="${y - 2}" text-anchor="middle" font-size="8" fill="${textColor}" font-family="Arial, sans-serif">Deadbolt Lock</text>`;
+  // Deadbolt latch extending from the door
+  const dbX = doorX + doorW + 2;
+  const dbY = leverY - 5;
+  svg += `<rect x="${dbX}" y="${dbY}" width="14" height="10" rx="2" fill="${highlightFill}" stroke="${outline}" stroke-width="1.5"/>`;
+  svg = drawLineLabel(svg, midX, doorY + doorH + 10, "Deadbolt", textColor);
   return svg;
 }
 
-function renderHotelLock(
-  svg: string, x: number, y: number, w: number, h: number,
-  fn: LockFunction, outline: string, fill: string, highlight: string, highlightFill: string, textColor: string,
+function drawHotel(
+  svg: string, fn: LockFunction, doorX: number, doorY: number, doorW: number, doorH: number, leverY: number,
+  outline: string, fill: string, highlight: string, highlightFill: string, textColor: string,
 ): string {
-  // Lock body
-  svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${fill}" stroke="${outline}" stroke-width="1.5"/>`;
+  const midX = doorX + doorW / 2;
 
-  // Key card reader on outside (left)
+  // Key card reader outside
   if (fn.hasKeycard) {
-    const readerX = x - 20;
-    const readerY = y + h / 2 - 16;
-    svg += `<rect x="${readerX}" y="${readerY}" width="20" height="32" rx="3" fill="${highlightFill}" stroke="${outline}" stroke-width="1.5"/>`;
+    const readerX = doorX - 50;
+    const readerY = leverY;
+    svg += `<rect x="${readerX - 10}" y="${readerY - 14}" width="20" height="28" rx="3" fill="${highlightFill}" stroke="${outline}" stroke-width="1.5"/>`;
     // Card slot
-    svg += `<rect x="${readerX + 3}" y="${readerY + 4}" width="14" height="3" rx="1" fill="${outline}"/>`;
-    // LED indicators
-    svg += `<circle cx="${readerX + 10}" cy="${readerY + 24}" r="3" fill="${highlight}" stroke="${outline}" stroke-width="0.5"/>`;
-    svg += `<text x="${readerX + 10}" y="${readerY + 46}" text-anchor="middle" font-size="7" fill="${textColor}" font-family="Arial, sans-serif">Key Card Reader</text>`;
+    svg += `<rect x="${readerX - 7}" y="${readerY - 9}" width="14" height="3" rx="1" fill="${outline}"/>`;
+    // LED indicator
+    svg += `<circle cx="${readerX}" cy="${readerY + 8}" r="3" fill="${highlight}" stroke="${outline}" stroke-width="0.5"/>`;
+    svg = drawLineLabel(svg, readerX, readerY + 22, "Key Card Reader", textColor);
   }
 
-  // Privacy thumb turn on inside (right)
+  // Thumb turn inside
   if (fn.hasThumbTurn) {
-    svg += `<ellipse cx="${x + w + 14}" cy="${y + h / 2 - 8}" rx="9" ry="7" fill="${highlightFill}" stroke="${outline}" stroke-width="1.5"/>`;
-    svg += `<line x1="${x + w + 8}" y1="${y + h / 2 - 8}" x2="${x + w + 20}" y2="${y + h / 2 - 8}" stroke="${outline}" stroke-width="2"/>`;
-    svg += `<text x="${x + w + 14}" y="${y + h / 2 + 12}" text-anchor="middle" font-size="7" fill="${textColor}" font-family="Arial, sans-serif">Privacy Lock</text>`;
+    svg = drawThumbTurn(svg, doorX + doorW + 50, leverY, "Privacy Lock", outline, highlightFill, textColor);
   }
 
-  // Deadbolt indicator
+  // Deadbolt
   if (fn.hasDeadbolt) {
-    const dbX = x + w / 2 - 6;
-    const dbY = y + h - 20;
-    svg += `<rect x="${dbX}" y="${dbY}" width="12" height="14" rx="2" fill="${highlightFill}" stroke="${outline}" stroke-width="1.5"/>`;
-    svg += `<text x="${dbX + 6}" y="${dbY + 24}" text-anchor="middle" font-size="6" fill="${textColor}" font-family="Arial, sans-serif">Deadbolt</text>`;
+    svg = drawLineLabel(svg, midX, doorY + doorH + 10, "Deadbolt", textColor);
   }
 
-  // "Do Not Disturb" indicator
-  svg += `<text x="${x + w / 2}" y="${y + 16}" text-anchor="middle" font-size="7" fill="${highlight}" font-family="Arial, sans-serif">DND</text>`;
+  // DND
+  svg = drawLineLabel(svg, midX, doorY + doorH + 22, "Do Not Disturb", highlight);
 
-  // Label
-  svg += `<text x="${x + w / 2}" y="${y - 8}" text-anchor="middle" font-size="8" fill="${textColor}" font-family="Arial, sans-serif">Hotel Function Lock</text>`;
   return svg;
 }
 
-function renderDummyTrim(
-  svg: string, x: number, y: number, w: number, h: number,
-  fn: LockFunction, outline: string, fill: string, highlight: string, highlightFill: string, textColor: string,
+function drawDummy(
+  svg: string, fn: LockFunction, doorX: number, doorY: number, doorW: number, doorH: number, leverY: number,
+  outline: string, fill: string, highlight: string, highlightFill: string, textColor: string,
 ): string {
-  // Fixed lever silhouette — no latch body, just a lever
-  const leverX = x + w / 2 - 4;
-  const leverY = y + 20;
+  const midX = doorX + doorW / 2;
 
-  // Rosette / base plate
-  svg += `<circle cx="${x + w / 2}" cy="${y + 30}" r="16" fill="${fill}" stroke="${outline}" stroke-width="1.5"/>`;
+  // Fixed lever indication (X through the lever)
+  svg += `<line x1="${doorX - 4}" y1="${leverY - 4}" x2="${doorX - leverLen + 4}" y2="${leverY + 4}" stroke="${highlight}" stroke-width="1.5"/>`;
+  svg += `<line x1="${doorX - 4}" y1="${leverY + 4}" x2="${doorX - leverLen + 4}" y2="${leverY - 4}" stroke="${highlight}" stroke-width="1.5"/>`;
+  svg += `<line x1="${doorX + doorW + 4}" y1="${leverY - 4}" x2="${doorX + doorW + leverLen - 4}" y2="${leverY + 4}" stroke="${highlight}" stroke-width="1.5"/>`;
+  svg += `<line x1="${doorX + doorW + 4}" y1="${leverY + 4}" x2="${doorX + doorW + leverLen - 4}" y2="${leverY - 4}" stroke="${highlight}" stroke-width="1.5"/>`;
 
-  // Fixed lever (horizontal, no movement)
-  svg += `<rect x="${x + w / 2 - 30}" y="${y + 26}" width="60" height="7" rx="2" fill="${highlightFill}" stroke="${outline}" stroke-width="1.5"/>`;
-
-  // Key cylinder if present
   if (fn.hasKeyOutside) {
-    svg += `<circle cx="${x - 14}" cy="${y + 30}" r="10" fill="${highlightFill}" stroke="${outline}" stroke-width="1.5"/>`;
-    svg += `<rect x="${x - 17}" y="${y + 28}" width="6" height="4" rx="1" fill="${outline}"/>`;
-    svg += `<text x="${x - 14}" y="${y + 54}" text-anchor="middle" font-size="7" fill="${textColor}" font-family="Arial, sans-serif">Key Cylinder</text>`;
+    svg = drawKeyCylinder(svg, doorX - 50, leverY, "Key Cylinder", outline, highlightFill, textColor);
   }
 
-  // No latch indicator
-  svg += `<text x="${x + w / 2}" y="${y + 55}" text-anchor="middle" font-size="7" fill="${highlight}" font-family="Arial, sans-serif">No Latch — Fixed</text>`;
-
-  // Label
-  svg += `<text x="${x + w / 2}" y="${y - 8}" text-anchor="middle" font-size="8" fill="${textColor}" font-family="Arial, sans-serif">Dummy Trim</text>`;
+  svg = drawLineLabel(svg, midX, doorY + doorH + 10, "Fixed — No Latch", highlight);
   return svg;
 }
 
-function renderElectricLock(
-  svg: string, x: number, y: number, w: number, h: number,
-  fn: LockFunction, outline: string, fill: string, highlight: string, highlightFill: string, textColor: string,
+function drawElectric(
+  svg: string, fn: LockFunction, doorX: number, doorY: number, doorW: number, doorH: number, leverY: number,
+  outline: string, fill: string, highlight: string, highlightFill: string, textColor: string,
 ): string {
-  // Electric lock body
-  svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${fill}" stroke="${outline}" stroke-width="1.5"/>`;
+  const midX = doorX + doorW / 2;
 
-  // Solenoid highlight (center of lock body)
-  svg += `<rect x="${x + w / 2 - 12}" y="${y + 15}" width="24" height="${h - 30}" rx="3" fill="${highlightFill}" stroke="${outline}" stroke-width="1"/>`;
-  svg += `<text x="${x + w / 2}" y="${y + h / 2 + 4}" text-anchor="middle" font-size="7" fill="white" font-family="Arial, sans-serif">SOL</text>`;
-
-  // Wiring/connector indicators
-  svg += `<line x1="${x + w / 2 - 4}" y1="${y - 5}" x2="${x + w / 2 - 4}" y2="${y + 3}" stroke="${outline}" stroke-width="1.5"/>`;
-  svg += `<line x1="${x + w / 2 + 4}" y1="${y - 5}" x2="${x + w / 2 + 4}" y2="${y + 3}" stroke="${outline}" stroke-width="1.5"/>`;
-  svg += `<circle cx="${x + w / 2 - 4}" cy="${y - 7}" r="2" fill="${outline}"/>`;
-  svg += `<circle cx="${x + w / 2 + 4}" cy="${y - 7}" r="2" fill="${outline}"/>`;
-  svg += `<text x="${x + w / 2}" y="${y - 14}" text-anchor="middle" font-size="6" fill="${textColor}" font-family="Arial, sans-serif">Wiring</text>`;
-
-  // Key card reader on outside
+  // Access control / key card reader
   if (fn.hasKeycard) {
-    const readerX = x - 20;
-    const readerY = y + h / 2 - 12;
-    svg += `<rect x="${readerX}" y="${readerY}" width="20" height="24" rx="3" fill="${highlightFill}" stroke="${outline}" stroke-width="1.5"/>`;
-    svg += `<rect x="${readerX + 3}" y="${readerY + 4}" width="14" height="2" rx="1" fill="${outline}"/>`;
-    svg += `<text x="${readerX + 10}" y="${readerY + 36}" text-anchor="middle" font-size="7" fill="${textColor}" font-family="Arial, sans-serif">Access Control</text>`;
+    const readerX = doorX - 50;
+    const readerY = leverY;
+    svg += `<rect x="${readerX - 10}" y="${readerY - 12}" width="20" height="24" rx="3" fill="${highlightFill}" stroke="${outline}" stroke-width="1.5"/>`;
+    svg += `<rect x="${readerX - 7}" y="${readerY - 7}" width="14" height="2" rx="1" fill="${outline}"/>`;
+    svg = drawLineLabel(svg, readerX, readerY + 20, "Access Control", textColor);
   }
 
-  // Electric strike on right side
-  svg += `<rect x="${x + w + 2}" y="${y + h / 2 - 8}" width="10" height="16" rx="2" fill="${highlightFill}" stroke="${outline}" stroke-width="1.5"/>`;
-  svg += `<text x="${x + w + 7}" y="${y + h / 2 + 24}" text-anchor="middle" font-size="6" fill="${textColor}" font-family="Arial, sans-serif">Strike</text>`;
+  // Electric strike indicator
+  const strikeX = doorX + doorW + 2;
+  const strikeY = leverY - 8;
+  svg += `<rect x="${strikeX}" y="${strikeY}" width="10" height="16" rx="2" fill="${highlightFill}" stroke="${outline}" stroke-width="1.5"/>`;
+  // Wiring lines
+  svg += `<line x1="${strikeX + 5}" y1="${strikeY - 8}" x2="${strikeX + 5}" y2="${strikeY - 2}" stroke="${outline}" stroke-width="1"/>`;
+  svg += `<circle cx="${strikeX + 5}" cy="${strikeY - 10}" r="2" fill="${outline}"/>`;
 
-  // ⚡ indicator
-  svg += `<text x="${x + w / 2}" y="${y + h + 12}" text-anchor="middle" font-size="9" fill="${outline}" font-family="Arial, sans-serif">⚡ Electrified</text>`;
-
-  // Label
-  svg += `<text x="${x + w / 2}" y="${y - 8}" text-anchor="middle" font-size="8" fill="${textColor}" font-family="Arial, sans-serif">Electric Lock Mechanism</text>`;
-  return svg;
-}
-
-// Small arrow helpers
-function arrowLeft(svg: string, x: number, y: number, color: string): string {
-  svg += `<line x1="${x}" y1="${y}" x2="${x - 12}" y2="${y}" stroke="${color}" stroke-width="1.5"/>`;
-  svg += `<line x1="${x - 12}" y1="${y}" x2="${x - 8}" y2="${y - 4}" stroke="${color}" stroke-width="1.5"/>`;
-  svg += `<line x1="${x - 12}" y1="${y}" x2="${x - 8}" y2="${y + 4}" stroke="${color}" stroke-width="1.5"/>`;
-  return svg;
-}
-function arrowRight(svg: string, x: number, y: number, color: string): string {
-  svg += `<line x1="${x}" y1="${y}" x2="${x + 12}" y2="${y}" stroke="${color}" stroke-width="1.5"/>`;
-  svg += `<line x1="${x + 12}" y1="${y}" x2="${x + 8}" y2="${y - 4}" stroke="${color}" stroke-width="1.5"/>`;
-  svg += `<line x1="${x + 12}" y1="${y}" x2="${x + 8}" y2="${y + 4}" stroke="${color}" stroke-width="1.5"/>`;
+  svg = drawLineLabel(svg, midX, doorY + doorH + 10, "⚡ Electric Strike", outline);
   return svg;
 }
