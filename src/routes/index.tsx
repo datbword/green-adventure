@@ -210,6 +210,9 @@ function Home() {
           </div>
         </div>
         <div className="flex items-center gap-1 sm:gap-2">
+          <Link to="/functions" className="mode-toggle-btn" title="Lock Functions" aria-label="Lock Functions">
+            <span className="text-xs" style={{ color: "var(--text-secondary)" }}>🔑</span>
+          </Link>
           {user ? (
             <div className="flex items-center gap-1 sm:gap-2">
               <Link to="/jobs" className="mode-toggle-btn" title="My Jobs" aria-label="My Jobs">
