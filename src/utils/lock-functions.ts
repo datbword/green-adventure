@@ -279,28 +279,28 @@ export function renderDoorDiagram(fn: LockFunction): string {
 
   switch (fn.lockType) {
     case "passage":
-      renderPassageLock(svg, lockBodyX, lockBodyY, lockBodyW, lockBodyH, outline, fill, highlight, highlightFill, textColor);
+      svg = renderPassageLock(svg, lockBodyX, lockBodyY, lockBodyW, lockBodyH, outline, fill, highlight, highlightFill, textColor);
       break;
     case "privacy":
-      renderPrivacyLock(svg, lockBodyX, lockBodyY, lockBodyW, lockBodyH, fn, outline, fill, highlight, highlightFill, textColor);
+      svg = renderPrivacyLock(svg, lockBodyX, lockBodyY, lockBodyW, lockBodyH, fn, outline, fill, highlight, highlightFill, textColor);
       break;
     case "cylindrical":
-      renderCylindricalLock(svg, lockBodyX, lockBodyY, lockBodyW, lockBodyH, fn, outline, fill, highlight, highlightFill, textColor);
+      svg = renderCylindricalLock(svg, lockBodyX, lockBodyY, lockBodyW, lockBodyH, fn, outline, fill, highlight, highlightFill, textColor);
       break;
     case "exit-device":
-      renderExitDevice(svg, lockBodyX, lockBodyY, lockBodyW, lockBodyH, fn, outline, fill, highlight, highlightFill, textColor);
+      svg = renderExitDevice(svg, lockBodyX, lockBodyY, lockBodyW, lockBodyH, fn, outline, fill, highlight, highlightFill, textColor);
       break;
     case "deadbolt":
-      renderDeadbolt(svg, lockBodyX, lockBodyY, lockBodyW, lockBodyH, fn, outline, fill, highlight, highlightFill, textColor);
+      svg = renderDeadbolt(svg, lockBodyX, lockBodyY, lockBodyW, lockBodyH, fn, outline, fill, highlight, highlightFill, textColor);
       break;
     case "hotel":
-      renderHotelLock(svg, lockBodyX, lockBodyY, lockBodyW, lockBodyH, fn, outline, fill, highlight, highlightFill, textColor);
+      svg = renderHotelLock(svg, lockBodyX, lockBodyY, lockBodyW, lockBodyH, fn, outline, fill, highlight, highlightFill, textColor);
       break;
     case "dummy":
-      renderDummyTrim(svg, lockBodyX, lockBodyY, lockBodyW, lockBodyH, fn, outline, fill, highlight, highlightFill, textColor);
+      svg = renderDummyTrim(svg, lockBodyX, lockBodyY, lockBodyW, lockBodyH, fn, outline, fill, highlight, highlightFill, textColor);
       break;
     case "electric":
-      renderElectricLock(svg, lockBodyX, lockBodyY, lockBodyW, lockBodyH, fn, outline, fill, highlight, highlightFill, textColor);
+      svg = renderElectricLock(svg, lockBodyX, lockBodyY, lockBodyW, lockBodyH, fn, outline, fill, highlight, highlightFill, textColor);
       break;
   }
 
@@ -316,7 +316,7 @@ export function renderDoorDiagram(fn: LockFunction): string {
 function renderPassageLock(
   svg: string, x: number, y: number, w: number, h: number,
   outline: string, fill: string, highlight: string, highlightFill: string, textColor: string,
-) {
+): string {
   // Lock chassis body
   svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${fill}" stroke="${outline}" stroke-width="1.5"/>`;
   // Free indicator — both sides
@@ -327,14 +327,15 @@ function renderPassageLock(
   svg += `<text x="${x - 30}" y="${y + h / 2 + 4}" text-anchor="middle" font-size="8" fill="${textColor}" font-family="Arial, sans-serif">Free</text>`;
   svg += `<text x="${x + w + 30}" y="${y + h / 2 + 4}" text-anchor="middle" font-size="8" fill="${textColor}" font-family="Arial, sans-serif">Free</text>`;
   // Small arrows showing free movement on both sides
-  arrowLeft(svg, x - 5, y + h / 2, highlight);
-  arrowRight(svg, x + w + 5, y + h / 2, highlight);
+  svg = arrowLeft(svg, x - 5, y + h / 2, highlight);
+  svg = arrowRight(svg, x + w + 5, y + h / 2, highlight);
+  return svg;
 }
 
 function renderPrivacyLock(
   svg: string, x: number, y: number, w: number, h: number,
   fn: LockFunction, outline: string, fill: string, highlight: string, highlightFill: string, textColor: string,
-) {
+): string {
   // Lock chassis body
   svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${fill}" stroke="${outline}" stroke-width="1.5"/>`;
 
@@ -355,12 +356,13 @@ function renderPrivacyLock(
 
   // Label
   svg += `<text x="${x + w / 2}" y="${y - 8}" text-anchor="middle" font-size="8" fill="${textColor}" font-family="Arial, sans-serif">Privacy Lock</text>`;
+  return svg;
 }
 
 function renderCylindricalLock(
   svg: string, x: number, y: number, w: number, h: number,
   fn: LockFunction, outline: string, fill: string, highlight: string, highlightFill: string, textColor: string,
-) {
+): string {
   // Lock chassis body
   svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${fill}" stroke="${outline}" stroke-width="1.5"/>`;
 
@@ -410,12 +412,13 @@ function renderCylindricalLock(
 
   // Label
   svg += `<text x="${x + w / 2}" y="${y - 8}" text-anchor="middle" font-size="8" fill="${textColor}" font-family="Arial, sans-serif">Cylindrical Lock</text>`;
+  return svg;
 }
 
 function renderExitDevice(
   svg: string, x: number, y: number, w: number, h: number,
   fn: LockFunction, outline: string, fill: string, highlight: string, highlightFill: string, textColor: string,
-) {
+): string {
   // Door outline (already drawn, but add a subtle push bar area)
 
   // Push bar — horizontal bar across the door
@@ -453,12 +456,13 @@ function renderExitDevice(
 
   // Label
   svg += `<text x="${x + w / 2}" y="${y + h + 12}" text-anchor="middle" font-size="8" fill="${textColor}" font-family="Arial, sans-serif">Exit Device</text>`;
+  return svg;
 }
 
 function renderDeadbolt(
   svg: string, x: number, y: number, w: number, h: number,
   fn: LockFunction, outline: string, fill: string, highlight: string, highlightFill: string, textColor: string,
-) {
+): string {
   // Deadbolt body (narrower, taller)
   const bodyW = 60;
   const bodyX = x + (w - bodyW) / 2;
@@ -486,12 +490,13 @@ function renderDeadbolt(
 
   // Label
   svg += `<text x="${bodyX + bodyW / 2}" y="${y - 2}" text-anchor="middle" font-size="8" fill="${textColor}" font-family="Arial, sans-serif">Deadbolt Lock</text>`;
+  return svg;
 }
 
 function renderHotelLock(
   svg: string, x: number, y: number, w: number, h: number,
   fn: LockFunction, outline: string, fill: string, highlight: string, highlightFill: string, textColor: string,
-) {
+): string {
   // Lock body
   svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${fill}" stroke="${outline}" stroke-width="1.5"/>`;
 
@@ -527,12 +532,13 @@ function renderHotelLock(
 
   // Label
   svg += `<text x="${x + w / 2}" y="${y - 8}" text-anchor="middle" font-size="8" fill="${textColor}" font-family="Arial, sans-serif">Hotel Function Lock</text>`;
+  return svg;
 }
 
 function renderDummyTrim(
   svg: string, x: number, y: number, w: number, h: number,
   fn: LockFunction, outline: string, fill: string, highlight: string, highlightFill: string, textColor: string,
-) {
+): string {
   // Fixed lever silhouette — no latch body, just a lever
   const leverX = x + w / 2 - 4;
   const leverY = y + 20;
@@ -555,12 +561,13 @@ function renderDummyTrim(
 
   // Label
   svg += `<text x="${x + w / 2}" y="${y - 8}" text-anchor="middle" font-size="8" fill="${textColor}" font-family="Arial, sans-serif">Dummy Trim</text>`;
+  return svg;
 }
 
 function renderElectricLock(
   svg: string, x: number, y: number, w: number, h: number,
   fn: LockFunction, outline: string, fill: string, highlight: string, highlightFill: string, textColor: string,
-) {
+): string {
   // Electric lock body
   svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${fill}" stroke="${outline}" stroke-width="1.5"/>`;
 
@@ -593,16 +600,19 @@ function renderElectricLock(
 
   // Label
   svg += `<text x="${x + w / 2}" y="${y - 8}" text-anchor="middle" font-size="8" fill="${textColor}" font-family="Arial, sans-serif">Electric Lock Mechanism</text>`;
+  return svg;
 }
 
 // Small arrow helpers
-function arrowLeft(svg: string, x: number, y: number, color: string) {
+function arrowLeft(svg: string, x: number, y: number, color: string): string {
   svg += `<line x1="${x}" y1="${y}" x2="${x - 12}" y2="${y}" stroke="${color}" stroke-width="1.5"/>`;
   svg += `<line x1="${x - 12}" y1="${y}" x2="${x - 8}" y2="${y - 4}" stroke="${color}" stroke-width="1.5"/>`;
   svg += `<line x1="${x - 12}" y1="${y}" x2="${x - 8}" y2="${y + 4}" stroke="${color}" stroke-width="1.5"/>`;
+  return svg;
 }
-function arrowRight(svg: string, x: number, y: number, color: string) {
+function arrowRight(svg: string, x: number, y: number, color: string): string {
   svg += `<line x1="${x}" y1="${y}" x2="${x + 12}" y2="${y}" stroke="${color}" stroke-width="1.5"/>`;
   svg += `<line x1="${x + 12}" y1="${y}" x2="${x + 8}" y2="${y - 4}" stroke="${color}" stroke-width="1.5"/>`;
   svg += `<line x1="${x + 12}" y1="${y}" x2="${x + 8}" y2="${y + 4}" stroke="${color}" stroke-width="1.5"/>`;
+  return svg;
 }
