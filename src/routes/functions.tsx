@@ -140,6 +140,15 @@ function FunctionsPage() {
 function FunctionDetail({ fn }: { fn: LockFunction }) {
   const svg = renderDoorDiagram(fn);
 
+  // Map imageTemplate to filename
+  const imageMap: Record<string, string> = {
+    lever: "/images/lever-lock-top-down.png",
+    "exit-device": "/images/exit-device.png",
+    deadbolt: "/images/deadbolt-top-down.png",
+    hotel: "/images/hotel-lock.png",
+  };
+  const imagePath = imageMap[fn.imageTemplate] || imageMap.lever;
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -156,7 +165,7 @@ function FunctionDetail({ fn }: { fn: LockFunction }) {
           </span>
           <span className="rounded-md px-2 py-0.5 text-xs font-medium" style={{
             backgroundColor: "color-mix(in srgb, var(--text-muted) 10%, transparent)",
-            color: "var(--text-muted)",
+            color: "var(--text-muted) ",
           }}>
             {fn.category === "commercial" ? "ANSI/BHMA" : fn.category === "electric" ? "Electric" : "Residential"}
           </span>
@@ -166,12 +175,23 @@ function FunctionDetail({ fn }: { fn: LockFunction }) {
         </h2>
       </div>
 
-      {/* SVG Diagram */}
+      {/* Hardware Diagram — illustrator image */}
       <div className="rounded-xl border p-4 sm:p-6" style={{
         backgroundColor: "var(--bg-primary)",
         borderColor: "var(--border-color)",
       }}>
-        <h3 className="mb-3 text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>Door Diagram</h3>
+        <h3 className="mb-3 text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>Hardware Diagram</h3>
+        <div className="mx-auto max-w-lg">
+          <img src={imagePath} alt={`${fn.code} — ${fn.name}`} className="w-full h-auto rounded-lg" style={{ maxHeight: "320px", objectFit: "contain" }} />
+        </div>
+      </div>
+
+      {/* Annotated schematic — SVG */}
+      <div className="rounded-xl border p-4 sm:p-6" style={{
+        backgroundColor: "var(--bg-primary)",
+        borderColor: "var(--border-color)",
+      }}>
+        <h3 className="mb-3 text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>Function Diagram</h3>
         <div className="mx-auto max-w-md" dangerouslySetInnerHTML={{ __html: svg }} />
       </div>
 
