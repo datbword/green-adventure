@@ -62,7 +62,7 @@ function FunctionsPage() {
           ) : (
             <button onClick={() => setShowAuth(true)}
               className="mode-toggle-btn" title="Sign in" aria-label="Sign in">
-              <span className="text-base">🔑</span>
+              <span className="text-xs font-semibold tracking-widest" style={{ color: "var(--text-secondary)" }}>LOGIN</span>
             </button>
           )}
           <button className="mode-toggle-btn" onClick={cycleMode} title={MODE_LABELS[mode]}

@@ -211,7 +211,13 @@ function Home() {
         </div>
         <div className="flex items-center gap-1 sm:gap-2">
           <Link to="/functions" className="mode-toggle-btn" title="Lock Functions" aria-label="Lock Functions">
-            <span className="text-xs" style={{ color: "var(--text-secondary)" }}>🔑</span>
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ color: "var(--text-secondary)" }}>
+              {/* Lever handle — horizontal bar */}
+              <rect x="2" y="7" width="14" height="4" rx="1.5" fill="currentColor" opacity="0.4"/>
+              {/* Curved arrow showing push/pull direction */}
+              <path d="M13 5C13 5 15 5 15 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+              <path d="M13 5L11.5 6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+            </svg>
           </Link>
           {user ? (
             <div className="flex items-center gap-1 sm:gap-2">
@@ -223,7 +229,7 @@ function Home() {
           ) : (
             <button onClick={() => setShowAuth(true)}
               className="mode-toggle-btn" title="Sign in" aria-label="Sign in">
-              <span className="text-base">🔑</span>
+              <span className="text-xs font-semibold tracking-widest" style={{ color: "var(--text-secondary)" }}>LOGIN</span>
             </button>
           )}
           <button className="mode-toggle-btn" onClick={cycleMode} title={MODE_LABELS[mode]}
