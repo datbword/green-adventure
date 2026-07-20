@@ -219,6 +219,18 @@ function Home() {
               <path d="M13 5L11.5 6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
             </svg>
           </Link>
+          <Link to="/handing" className="mode-toggle-btn" title="Door Handing" aria-label="Door Handing">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ color: "var(--text-secondary)" }}>
+              {/* Door with hinge dots */}
+              <rect x="2" y="3" width="14" height="12" rx="1" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.4"/>
+              <circle cx="4" cy="5" r="1" fill="currentColor"/>
+              <circle cx="4" cy="9" r="1" fill="currentColor"/>
+              <circle cx="4" cy="13" r="1" fill="currentColor"/>
+              {/* Arrow inside */}
+              <path d="M6 9L12 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              <path d="M10 7L12 9L10 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </Link>
           {user ? (
             <div className="flex items-center gap-1 sm:gap-2">
               <Link to="/jobs" className="mode-toggle-btn" title="My Jobs" aria-label="My Jobs">
