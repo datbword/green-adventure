@@ -4,7 +4,7 @@ import { useVisualMode } from "~/hooks/useVisualMode";
 import { useAuth } from "~/hooks/useAuth";
 import { AuthModal } from "~/components/AuthModal";
 import { UserMenu } from "~/components/UserMenu";
-import { LOCK_FUNCTIONS, renderDoorDiagram, type LockFunction } from "~/utils/lock-functions";
+import { LOCK_FUNCTIONS, type LockFunction } from "~/utils/lock-functions";
 
 export const Route = createFileRoute("/functions")({
   component: FunctionsPage,
@@ -138,17 +138,6 @@ function FunctionsPage() {
 }
 
 function FunctionDetail({ fn }: { fn: LockFunction }) {
-  const svg = renderDoorDiagram(fn);
-
-  // Map imageTemplate to filename
-  const imageMap: Record<string, string> = {
-    lever: "/images/lever-lock-top-down.png",
-    "exit-device": "/images/exit-device.png",
-    deadbolt: "/images/deadbolt-top-down.png",
-    hotel: "/images/hotel-lock.png",
-  };
-  const imagePath = imageMap[fn.imageTemplate] || imageMap.lever;
-
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -173,26 +162,6 @@ function FunctionDetail({ fn }: { fn: LockFunction }) {
         <h2 className="text-2xl font-bold tracking-tight sm:text-3xl" style={{ color: "var(--text-primary)" }}>
           {fn.name}
         </h2>
-      </div>
-
-      {/* Hardware Diagram — illustrator image */}
-      <div className="rounded-xl border p-4 sm:p-6" style={{
-        backgroundColor: "var(--bg-primary)",
-        borderColor: "var(--border-color)",
-      }}>
-        <h3 className="mb-3 text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>Hardware Diagram</h3>
-        <div className="mx-auto max-w-lg">
-          <img src={imagePath} alt={`${fn.code} — ${fn.name}`} className="w-full h-auto rounded-lg" style={{ maxHeight: "320px", objectFit: "contain" }} />
-        </div>
-      </div>
-
-      {/* Annotated schematic — SVG */}
-      <div className="rounded-xl border p-4 sm:p-6" style={{
-        backgroundColor: "var(--bg-primary)",
-        borderColor: "var(--border-color)",
-      }}>
-        <h3 className="mb-3 text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>Function Diagram</h3>
-        <div className="mx-auto max-w-md" dangerouslySetInnerHTML={{ __html: svg }} />
       </div>
 
       {/* Description */}
