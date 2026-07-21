@@ -7,6 +7,7 @@ import { AuthModal } from "~/components/AuthModal";
 import { UserMenu } from "~/components/UserMenu";
 import { SaveToJobModal } from "~/components/SaveToJobModal";
 import { buildPartNumber, buildPartialPartNumber, findCrossReferences, isComplete, getActiveFields, getFieldCounts, getFieldLabel, getFieldPlaceholder } from "~/utils/part-builder";
+import { decodePartNumber, tryPartialDecode, type DecodeResult } from "~/utils/part-decoder";
 import { useVisualMode } from "~/hooks/useVisualMode";
 import { useAuth } from "~/hooks/useAuth";
 import type { ManufacturerData, ManufacturerOption, ProductSeries, SeriesOption, Selection, DataCache } from "~/types";
@@ -61,6 +62,13 @@ function Home() {
   const { user, showAuth, setShowAuth, saveSession, clearSession } = useAuth();
   const [saveJobPart, setSaveJobPart] = useState<SavedPart | null>(null);
   const [saveToast, setSaveToast] = useState("");
+
+  // Decode mode state
+  const [tabMode, setTabMode] = useState<"build" | "decode">("build");
+  const [decodeInput, setDecodeInput] = useState("");
+  const [decodeResult, setDecodeResult] = useState<DecodeResult | null>(null);
+  const [decodeAllResults, setDecodeAllResults] = useState<DecodeResult[]>([]);
+  const [decodeError, setDecodeError] = useState("");
 
   const defaultSelection: Selection = {
     manufacturerId: null,
@@ -206,7 +214,7 @@ function Home() {
           </div>
           <div>
             <h1 className="text-xl font-bold tracking-tight sm:text-2xl" style={{ color: "var(--text-primary)" }}>LockBuilder</h1>
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>Part Number Builder</p>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>{tabMode === "build" ? "Part Number Builder" : "Part Number Decoder"}</p>
           </div>
         </div>
         <div className="flex items-center gap-1 sm:gap-2">
@@ -251,8 +259,229 @@ function Home() {
         </div>
       </header>
 
-      {/* Brand / Manufacturer Selector */}
-      <div className="mb-4">
+      {/* Mode Tabs */}
+      <div className="mb-5 flex rounded-xl p-1" style={{ backgroundColor: "var(--bg-tertiary)" }}>
+        <button
+          onClick={() => setTabMode("build")}
+          className="flex-1 rounded-lg py-2.5 text-sm font-medium transition-colors"
+          style={{
+            backgroundColor: tabMode === "build" ? "var(--bg-primary)" : "transparent",
+            color: tabMode === "build" ? "var(--text-primary)" : "var(--text-muted)",
+            boxShadow: tabMode === "build" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+            cursor: "pointer",
+            minHeight: "44px",
+            border: "none",
+          }}>
+          🔧 Build
+        </button>
+        <button
+          onClick={() => setTabMode("decode")}
+          className="flex-1 rounded-lg py-2.5 text-sm font-medium transition-colors"
+          style={{
+            backgroundColor: tabMode === "decode" ? "var(--bg-primary)" : "transparent",
+            color: tabMode === "decode" ? "var(--text-primary)" : "var(--text-muted)",
+            boxShadow: tabMode === "decode" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+            cursor: "pointer",
+            minHeight: "44px",
+            border: "none",
+          }}>
+          🔍 Decode
+        </button>
+      </div>
+
+      {/* ── Decode Mode ── */}
+      {tabMode === "decode" && (
+        <div className="space-y-4">
+          {/* Decode Input */}
+          <div>
+            <label className="label-text">Paste a Part Number</label>
+            <div className="mt-1 flex gap-2">
+              <input
+                type="text"
+                value={decodeInput}
+                onChange={(e) => {
+                  setDecodeInput(e.target.value);
+                  setDecodeResult(null);
+                  setDecodeAllResults([]);
+                  setDecodeError("");
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    const result = decodePartNumber(decodeInput, data.manufacturerFiles);
+                    if (result) {
+                      setDecodeResult(result);
+                      setDecodeAllResults([]);
+                      setDecodeError("");
+                    } else {
+                      const partials = tryPartialDecode(decodeInput, data.manufacturerFiles);
+                      if (partials.length > 0) {
+                        setDecodeAllResults(partials);
+                        setDecodeResult(null);
+                        setDecodeError("");
+                      } else {
+                        setDecodeResult(null);
+                        setDecodeAllResults([]);
+                        setDecodeError("Could not identify the manufacturer or part number. Check the format and try again.");
+                      }
+                    }
+                  }
+                }}
+                placeholder="e.g. QL81-SR-26D-306-Q71-IC"
+                className="w-full rounded-lg border px-4 py-3 text-sm transition-colors"
+                style={{
+                  backgroundColor: "var(--bg-primary)",
+                  color: "var(--text-primary)",
+                  borderColor: "var(--border-color)",
+                  minHeight: "48px",
+                  outline: "none",
+                }}
+              />
+              <button
+                onClick={() => {
+                  const result = decodePartNumber(decodeInput, data.manufacturerFiles);
+                  if (result) {
+                    setDecodeResult(result);
+                    setDecodeAllResults([]);
+                    setDecodeError("");
+                  } else {
+                    const partials = tryPartialDecode(decodeInput, data.manufacturerFiles);
+                    if (partials.length > 0) {
+                      setDecodeAllResults(partials);
+                      setDecodeResult(null);
+                      setDecodeError("");
+                    } else {
+                      setDecodeResult(null);
+                      setDecodeAllResults([]);
+                      setDecodeError("Could not identify the manufacturer or part number. Check the format and try again.");
+                    }
+                  }
+                }}
+                className="rounded-lg px-5 py-3 text-sm font-semibold text-white transition-colors"
+                style={{
+                  backgroundColor: "var(--accent)",
+                  cursor: "pointer",
+                  minHeight: "48px",
+                  border: "none",
+                }}>
+                Decode
+              </button>
+            </div>
+          </div>
+
+          {/* Error message */}
+          {decodeError && (
+            <div className="rounded-xl border p-5" style={{
+              borderColor: "color-mix(in srgb, #d32f2f 30%, transparent)",
+              backgroundColor: "color-mix(in srgb, #d32f2f 8%, transparent)",
+            }}>
+              <p className="text-sm" style={{ color: "#d32f2f" }}>{decodeError}</p>
+              <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
+                Tip: Try removing extra spaces, or try a simpler part number format. Supported manufacturers: Arrow, Schlage, BEST, Corbin Russwin, GMS, Von Duprin, and 60+ others.
+              </p>
+            </div>
+          )}
+
+          {/* Partial/multiple matches */}
+          {decodeAllResults.length > 1 && (
+            <div className="rounded-xl border p-5" style={{
+              borderColor: "color-mix(in srgb, var(--brass) 30%, transparent)",
+              backgroundColor: "color-mix(in srgb, var(--brass) 6%, transparent)",
+            }}>
+              <p className="mb-3 text-sm font-semibold" style={{ color: "var(--brass)" }}>Multiple possible matches found</p>
+              <div className="space-y-3">
+                {decodeAllResults.map((r, i) => (
+                  <div key={i} className="rounded-lg border p-4 cursor-pointer transition-colors"
+                    style={{ borderColor: "var(--border-color)", backgroundColor: "var(--bg-secondary)" }}
+                    onClick={() => {
+                      const result = decodePartNumber(r.partNumber, data.manufacturerFiles);
+                      if (result) {
+                        setDecodeResult(result);
+                        setDecodeAllResults([]);
+                        setDecodeInput(result.partNumber);
+                      }
+                    }}>
+                    <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{r.manufacturerName} — {r.seriesName}</p>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>Pattern: {r.series}</p>
+                    <p className="mt-1 font-mono text-sm" style={{ color: "var(--accent)" }}>{r.partNumber}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Full decode result */}
+          {decodeResult && (
+            <div className="rounded-xl border p-5" style={{
+              borderColor: "color-mix(in srgb, var(--success) 30%, transparent)",
+              backgroundColor: "color-mix(in srgb, var(--success) 6%, transparent)",
+            }}>
+              <div className="mb-4">
+                <p className="text-xs font-medium uppercase tracking-widest" style={{ color: "var(--success)" }}>Decoded Part Number</p>
+                <p className="mt-1 font-mono text-lg font-bold" style={{ color: "var(--text-primary)" }}>{decodeResult.partNumber}</p>
+                <p className="mt-0.5 text-sm" style={{ color: "var(--text-muted)" }}>
+                  {decodeResult.manufacturerName} — {decodeResult.seriesName}
+                </p>
+              </div>
+
+              {/* Token breakdown */}
+              <div className="space-y-2">
+                {decodeResult.tokens.map((token, i) => (
+                  <div key={i} className="flex items-start gap-3 rounded-lg border p-3"
+                    style={{
+                      borderColor: token.unknown ? "color-mix(in srgb, #d32f2f 20%, transparent)" : "var(--border-color)",
+                      backgroundColor: token.unknown ? "color-mix(in srgb, #d32f2f 5%, transparent)" : "var(--bg-primary)",
+                    }}>
+                    <div className="mt-0.5 shrink-0 rounded-md px-2 py-0.5 text-xs font-mono font-semibold"
+                      style={{
+                        backgroundColor: token.unknown ? "color-mix(in srgb, #d32f2f 15%, transparent)" : "color-mix(in srgb, var(--accent) 12%, transparent)",
+                        color: token.unknown ? "#d32f2f" : "var(--accent)",
+                      }}>
+                      {getFieldLabel(token.field)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                        {token.code}
+                        {token.unknown && <span className="ml-2 text-xs" style={{ color: "#d32f2f" }}>(unrecognized)</span>}
+                      </p>
+                      <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                        {token.name}
+                      </p>
+                      {token.description && (
+                        <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)", opacity: 0.7 }}>
+                          {token.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Empty state for decode mode */}
+          {!decodeResult && decodeAllResults.length === 0 && !decodeError && (
+            <div className="rounded-xl border border-dashed p-8 text-center"
+              style={{ borderColor: "var(--border-color)", backgroundColor: "var(--bg-secondary)" }}>
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full text-2xl"
+                style={{ backgroundColor: "color-mix(in srgb, var(--accent) 12%, transparent)" }}>
+                🔍
+              </div>
+              <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>Decode a Part Number</h2>
+              <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>
+                Paste a manufacturer part number and we'll break it down into its components with descriptions.
+              </p>
+              <p className="mt-3 text-xs" style={{ color: "var(--text-muted)" }}>
+                Try: QL81-SR-26D-306-Q71-IC, DND-26D, or KIL-SR-626
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Build Mode ── */}
+      {tabMode === "build" && (
+        <>
+          <div className="mb-4">
         <SearchableSelect
           label="Brand"
           options={data.manufacturers}
@@ -533,6 +762,7 @@ function Home() {
           )}
         </>
       )}
+      </>)}
     </div>
   );
 }
