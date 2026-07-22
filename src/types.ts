@@ -32,8 +32,10 @@ export interface SeriesOption {
   code: string;
   name: string;
   description?: string;
+  note?: string;
   availablePins?: number[];
   backsetType?: string;
+  family?: string;
 }
 
 export interface Selection {

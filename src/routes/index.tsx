@@ -8,6 +8,7 @@ import { UserMenu } from "~/components/UserMenu";
 import { SaveToJobModal } from "~/components/SaveToJobModal";
 import { buildPartNumber, buildPartialPartNumber, findCrossReferences, isComplete, getActiveFields, getFieldCounts, getFieldLabel, getFieldPlaceholder } from "~/utils/part-builder";
 import { decodePartNumber, tryPartialDecode, type DecodeResult } from "~/utils/part-decoder";
+import type { ConversionResult } from "~/utils/option-converter";
 import { useVisualMode } from "~/hooks/useVisualMode";
 import { useAuth } from "~/hooks/useAuth";
 import type { ManufacturerData, ManufacturerOption, ProductSeries, SeriesOption, Selection, DataCache } from "~/types";
@@ -70,6 +71,56 @@ function Home() {
   const [decodeAllResults, setDecodeAllResults] = useState<DecodeResult[]>([]);
   const [decodeError, setDecodeError] = useState("");
 
+  // Product search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchCategory, setSearchCategory] = useState<string | null>(null);
+  const [searchFocused, setSearchFocused] = useState(false);
+
+  // Build search index: category → brands with that product type
+  const searchIndex = useMemo(() => {
+    const index: Record<string, { manufacturerId: string; manufacturerName: string; seriesName: string; series: string; category: string }[]> = {};
+    for (const [id, mfData] of Object.entries(data.manufacturerFiles)) {
+      for (const product of mfData.products) {
+        const cat = product.category || "";
+        if (!cat) continue;
+        if (!index[cat]) index[cat] = [];
+        // Avoid duplicates within same brand
+        if (!index[cat].some((e) => e.manufacturerId === id && e.series === product.series)) {
+          index[cat].push({
+            manufacturerId: id,
+            manufacturerName: mfData.manufacturer,
+            seriesName: product.name || product.series,
+            series: product.series,
+            category: cat,
+          });
+        }
+      }
+    }
+    return index;
+  }, [data.manufacturerFiles]);
+
+  // Search logic: match query against categories
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim() || searchQuery.length < 2) return [];
+    const q = searchQuery.toLowerCase().trim();
+    const matches: { category: string; brands: typeof searchIndex[string] }[] = [];
+    for (const [category, brands] of Object.entries(searchIndex)) {
+      const catLower = category.toLowerCase();
+      // Check if query matches the category name
+      if (catLower.includes(q) || q.split(/\s+/).some((word) => catLower.includes(word))) {
+        matches.push({ category, brands });
+      }
+    }
+    // Sort: exact match first, then longest match
+    matches.sort((a, b) => {
+      const aExact = a.category.toLowerCase() === q ? 0 : 1;
+      const bExact = b.category.toLowerCase() === q ? 0 : 1;
+      if (aExact !== bExact) return aExact - bExact;
+      return b.brands.length - a.brands.length;
+    });
+    return matches;
+  }, [searchQuery, searchIndex]);
+
   const defaultSelection: Selection = {
     manufacturerId: null,
     manufacturerName: null,
@@ -79,11 +130,85 @@ function Home() {
   };
 
   const [selection, setSelection] = useState<Selection>({ ...defaultSelection });
+  const [conversionResult, setConversionResult] = useState<ConversionResult | null>(null);
 
   const updateSelection = (key: string, value: SeriesOption | string | null) => {
-    // When manufacturer changes, reset all downstream selections
+    // When manufacturer changes, preserve universal options and convert where possible
     if (key === "manufacturerId") {
       const id = value as string | null;
+      const prevManufacturerId = selection.manufacturerId;
+      const hadSelections = selection.options && Object.keys(selection.options).length > 0;
+
+      if (hadSelections && id && id !== prevManufacturerId) {
+        const oldOpts = { ...selection.options };
+        const keptOptions: Record<string, SeriesOption | null> = {};
+        const convertedFields: string[] = [];
+        const skippedFields: string[] = [];
+        const keptFields: string[] = [];
+
+        // Universal fields — direct keep
+        for (const key of ["handing", "backset"]) {
+          if (oldOpts[key]) { keptOptions[key] = oldOpts[key]; keptFields.push(key); }
+        }
+        // Standard fields — keep but validate later
+        for (const key of ["keyway", "cylinderPrep", "function", "voltage", "size", "length"]) {
+          if (oldOpts[key]) { keptOptions[key] = oldOpts[key]; keptFields.push(key); }
+        }
+
+        // Try ANSI finish conversion
+        if (oldOpts.finish) {
+          const newBrandData = data.manufacturerFiles[id];
+          if (newBrandData) {
+            let bestMatch: SeriesOption | null = null;
+            const oldCode = oldOpts.finish.code;
+            const oldName = oldOpts.finish.name.toLowerCase();
+            for (const product of newBrandData.products) {
+              for (const f of product.options?.finish ?? []) {
+                if (f.code === oldCode) { bestMatch = f; break; }
+              }
+              if (bestMatch) break;
+            }
+            if (!bestMatch) {
+              for (const product of newBrandData.products) {
+                for (const f of product.options?.finish ?? []) {
+                  if (f.name.toLowerCase() === oldName) { bestMatch = f; break; }
+                }
+                if (bestMatch) break;
+              }
+            }
+            if (bestMatch) {
+              keptOptions.finish = bestMatch;
+              convertedFields.push("finish");
+            } else {
+              skippedFields.push("finish");
+            }
+          } else {
+            skippedFields.push("finish");
+          }
+        }
+
+        const totalAttempted = convertedFields.length + keptFields.length + skippedFields.length;
+        if (totalAttempted > 0) {
+          const convMap: Record<string, { from: SeriesOption; to: SeriesOption }> = {};
+          for (const k of convertedFields) {
+            if (oldOpts[k] && keptOptions[k]) {
+              convMap[k] = { from: oldOpts[k]!, to: keptOptions[k]! };
+            }
+          }
+          setConversionResult({ converted: convMap, skipped: skippedFields, attempted: convertedFields.length + skippedFields.length });
+          setTimeout(() => setConversionResult(null), 6000);
+        }
+
+        setSelection({
+          manufacturerId: id,
+          manufacturerName: id ? data.manufacturers.find((m) => m.id === id)?.name ?? null : null,
+          series: null, pins: null,
+          options: keptOptions,
+        });
+        return;
+      }
+
+      setConversionResult(null);
       setSelection({
         ...defaultSelection,
         manufacturerId: id,
@@ -92,6 +217,56 @@ function Home() {
       return;
     }
     if (key === "series") {
+      const newSeries = value as unknown as ProductSeries | null;
+      setConversionResult(null);
+      // Try cross-brand conversion from preserved options
+      if (newSeries && selection.options && Object.keys(selection.options).length > 0) {
+        const currentOpts = { ...selection.options };
+        // Validate each kept option against the new series's available options
+        const validated: Record<string, SeriesOption | null> = {};
+        const convertedFields: string[] = [];
+        const skippedFields: string[] = [];
+        for (const [optKey, optValue] of Object.entries(currentOpts)) {
+          if (!optValue) continue;
+          const available = newSeries.options?.[optKey];
+          if (!available || available.length === 0) {
+            skippedFields.push(optKey);
+            continue;
+          }
+          // Check if the exact code exists in the new series
+          const exactMatch = available.find((o) => o.code === optValue.code);
+          if (exactMatch) {
+            validated[optKey] = exactMatch;
+            convertedFields.push(optKey);
+          } else {
+            // Try name match
+            const nameMatch = available.find((o) => o.name.toLowerCase() === optValue.name.toLowerCase());
+            if (nameMatch) {
+              validated[optKey] = nameMatch;
+              convertedFields.push(optKey);
+            } else {
+              skippedFields.push(optKey);
+            }
+          }
+        }
+        if (convertedFields.length > 0 || skippedFields.length > 0) {
+          const convMap: Record<string, { from: SeriesOption; to: SeriesOption }> = {};
+          for (const k of convertedFields) {
+            if (currentOpts[k] && validated[k]) {
+              convMap[k] = { from: currentOpts[k]!, to: validated[k]! };
+            }
+          }
+          setConversionResult({ converted: convMap, skipped: skippedFields, attempted: convertedFields.length + skippedFields.length });
+          setTimeout(() => setConversionResult(null), 6000);
+        }
+        setSelection((prev) => ({
+          ...prev,
+          series: newSeries,
+          options: Object.keys(validated).length > 0 ? validated : {},
+          pins: null,
+        }));
+        return;
+      }
       setSelection((prev) => ({
         ...prev,
         series: value as unknown as ProductSeries | null,
@@ -108,6 +283,7 @@ function Home() {
 
   const clearAll = () => {
     setSelection({ ...defaultSelection });
+    setConversionResult(null);
   };
 
   // Auto-select pin count when keyway has only one available pin option
@@ -481,6 +657,85 @@ function Home() {
       {/* ── Build Mode ── */}
       {tabMode === "build" && (
         <>
+          {/* ── Product Search Bar ── */}
+          <div className="mb-4 relative">
+            <label className="label-text" style={{ marginBottom: "4px", display: "block" }}>What are you looking for?</label>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setSearchCategory(null); }}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
+              placeholder="e.g., door closer, exit device, entry lever..."
+              className="w-full rounded-lg border px-4 py-3 text-sm transition-colors"
+              style={{
+                backgroundColor: "var(--bg-primary)",
+                color: "var(--text-primary)",
+                borderColor: searchFocused ? "var(--accent)" : "var(--border-color)",
+                minHeight: "48px",
+                outline: "none",
+              }}
+            />
+            {/* Search Results Dropdown */}
+            {searchFocused && searchQuery.length >= 2 && (
+              <div className="absolute z-50 mt-1 w-full rounded-lg border shadow-lg overflow-hidden"
+                style={{
+                  backgroundColor: "var(--bg-primary)",
+                  borderColor: "var(--border-color)",
+                  maxHeight: "320px",
+                  overflowY: "auto",
+                }}>
+                {searchCategory ? (
+                  /* Show brands for selected category */
+                  <>
+                    <button
+                      onMouseDown={() => setSearchCategory(null)}
+                      className="w-full px-4 py-2.5 text-left text-sm font-medium flex items-center gap-2"
+                      style={{ color: "var(--accent)", cursor: "pointer", border: "none", backgroundColor: "transparent", minHeight: "40px" }}>
+                      ← Back to categories
+                    </button>
+                    <div className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)", borderTop: "1px solid var(--border-color)" }}>
+                      {searchCategory} — {searchIndex[searchCategory]?.length || 0} brand{(searchIndex[searchCategory]?.length || 0) !== 1 ? "s" : ""}
+                    </div>
+                    {searchIndex[searchCategory]?.map((entry) => (
+                      <button
+                        key={entry.manufacturerId}
+                        onMouseDown={() => {
+                          updateSelection("manufacturerId", entry.manufacturerId);
+                          setSearchQuery("");
+                          setSearchCategory(null);
+                          setSearchFocused(false);
+                        }}
+                        className="w-full px-4 py-3 text-left text-sm flex items-center justify-between hover:opacity-80"
+                        style={{ cursor: "pointer", border: "none", backgroundColor: "transparent", minHeight: "44px", color: "var(--text-primary)" }}>
+                        <span>{entry.manufacturerName}</span>
+                        <span className="text-xs" style={{ color: "var(--text-muted)" }}>{entry.series}</span>
+                      </button>
+                    ))}
+                  </>
+                ) : searchResults.length > 0 ? (
+                  /* Show matching categories */
+                  searchResults.map((result) => (
+                    <button
+                      key={result.category}
+                      onMouseDown={() => setSearchCategory(result.category)}
+                      className="w-full px-4 py-3 text-left text-sm flex items-center justify-between hover:opacity-80"
+                      style={{ cursor: "pointer", border: "none", backgroundColor: "transparent", minHeight: "44px", color: "var(--text-primary)" }}>
+                      <span>{result.category}</span>
+                      <span className="text-xs rounded-full px-2 py-0.5" style={{ color: "var(--text-muted)", backgroundColor: "color-mix(in srgb, var(--text-muted) 10%, transparent)" }}>
+                        {result.brands.length} brand{result.brands.length !== 1 ? "s" : ""}
+                      </span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="px-4 py-4 text-sm text-center" style={{ color: "var(--text-muted)" }}>
+                    No matching product types found
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <div className="mb-4">
         <SearchableSelect
           label="Brand"
@@ -574,6 +829,30 @@ function Home() {
             </>
           )}
 
+          {/* Cross-brand conversion toast */}
+          {conversionResult && (conversionResult.attempted > 0 || conversionResult.skipped.length > 0) && (
+            <div className="mb-4 rounded-lg px-3 py-2.5 text-xs font-medium"
+              style={{
+                backgroundColor: "color-mix(in srgb, #2E7D32 10%, transparent)",
+                color: "#2E7D32",
+                border: "1px solid color-mix(in srgb, #2E7D32 25%, transparent)",
+              }}>
+              <span className="mr-1">✓</span>
+              {Object.keys(conversionResult.converted).length} of {conversionResult.attempted + conversionResult.skipped.length} options carried over
+              {conversionResult.skipped.length > 0 && (
+                <span className="ml-1" style={{ opacity: 0.7 }}>
+                  ({conversionResult.skipped.map((k) => getFieldLabel(k)).join(", ")} not converted)
+                </span>
+              )}
+              <button
+                onClick={() => setConversionResult(null)}
+                className="ml-2 text-xs underline cursor-pointer"
+                style={{ color: "inherit", background: "none", border: "none" }}>
+                Dismiss
+              </button>
+            </div>
+          )}
+
           {/* Proactive warnings */}
           {warnings.length > 0 && (
             <div className="mb-4 space-y-1">
@@ -622,6 +901,19 @@ function Home() {
               );
             })}
           </div>
+
+          {/* Proprietary keyway note — info banner when selected keyway has a note */}
+          {selection.options.keyway?.note && (
+            <div className="mt-3 rounded-lg px-3 py-2.5 text-xs"
+              style={{
+                backgroundColor: "color-mix(in srgb, #1565C0 8%, transparent)",
+                color: "#1565C0",
+                border: "1px solid color-mix(in srgb, #1565C0 20%, transparent)",
+              }}>
+              <span className="mr-1.5">ℹ</span>
+              {selection.options.keyway.note}
+            </div>
+          )}
 
           {/* Pin Count Selector — only show if the selected keyway has multiple pin options */}
           {selection.options.keyway?.availablePins && selection.options.keyway.availablePins.length > 0 && (
