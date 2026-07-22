@@ -6,11 +6,14 @@ import { SearchableSelect } from "~/components/SearchableSelect";
 import { AuthModal } from "~/components/AuthModal";
 import { UserMenu } from "~/components/UserMenu";
 import { SaveToJobModal } from "~/components/SaveToJobModal";
+import { SettingsPanel } from "~/components/SettingsPanel";
 import { buildPartNumber, buildPartialPartNumber, findCrossReferences, isComplete, getActiveFields, getFieldCounts, getFieldLabel, getFieldPlaceholder } from "~/utils/part-builder";
 import { decodePartNumber, tryPartialDecode, type DecodeResult } from "~/utils/part-decoder";
 import type { ConversionResult } from "~/utils/option-converter";
 import { useVisualMode } from "~/hooks/useVisualMode";
+import { useSettings } from "~/hooks/useSettings";
 import { useAuth } from "~/hooks/useAuth";
+import { I18nProvider, useI18n } from "~/i18n/context";
 import type { ManufacturerData, ManufacturerOption, ProductSeries, SeriesOption, Selection, DataCache } from "~/types";
 import type { SavedPart } from "~/utils/jobs";
 
@@ -49,20 +52,24 @@ const loadAllData = createServerFn({ method: "GET" }).handler(async (): Promise<
 
 export const Route = createFileRoute("/")({
   loader: () => loadAllData(),
-  component: Home,
+  component: () => (
+    <I18nProvider>
+      <Home />
+    </I18nProvider>
+  ),
 });
 
 // ── Visual Mode ──
 
-const MODE_ICONS: Record<string, string> = { normal: "☀️", dark: "🌙", "high-contrast": "🔲", calm: "🌀" };
-const MODE_LABELS: Record<string, string> = { normal: "Light mode", dark: "Dark mode", "high-contrast": "High contrast", calm: "Calm mode" };
-
 function Home() {
   const data = Route.useLoaderData();
-  const { mode, cycleMode } = useVisualMode();
+  const { mode, setMode } = useVisualMode();
+  const { theme, setTheme } = useSettings();
+  const { t, lang, setLang } = useI18n();
   const { user, showAuth, setShowAuth, saveSession, clearSession } = useAuth();
   const [saveJobPart, setSaveJobPart] = useState<SavedPart | null>(null);
   const [saveToast, setSaveToast] = useState("");
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Decode mode state
   const [tabMode, setTabMode] = useState<"build" | "decode">("build");
@@ -70,56 +77,6 @@ function Home() {
   const [decodeResult, setDecodeResult] = useState<DecodeResult | null>(null);
   const [decodeAllResults, setDecodeAllResults] = useState<DecodeResult[]>([]);
   const [decodeError, setDecodeError] = useState("");
-
-  // Product search state
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchCategory, setSearchCategory] = useState<string | null>(null);
-  const [searchFocused, setSearchFocused] = useState(false);
-
-  // Build search index: category → brands with that product type
-  const searchIndex = useMemo(() => {
-    const index: Record<string, { manufacturerId: string; manufacturerName: string; seriesName: string; series: string; category: string }[]> = {};
-    for (const [id, mfData] of Object.entries(data.manufacturerFiles)) {
-      for (const product of mfData.products) {
-        const cat = product.category || "";
-        if (!cat) continue;
-        if (!index[cat]) index[cat] = [];
-        // Avoid duplicates within same brand
-        if (!index[cat].some((e) => e.manufacturerId === id && e.series === product.series)) {
-          index[cat].push({
-            manufacturerId: id,
-            manufacturerName: mfData.manufacturer,
-            seriesName: product.name || product.series,
-            series: product.series,
-            category: cat,
-          });
-        }
-      }
-    }
-    return index;
-  }, [data.manufacturerFiles]);
-
-  // Search logic: match query against categories
-  const searchResults = useMemo(() => {
-    if (!searchQuery.trim() || searchQuery.length < 2) return [];
-    const q = searchQuery.toLowerCase().trim();
-    const matches: { category: string; brands: typeof searchIndex[string] }[] = [];
-    for (const [category, brands] of Object.entries(searchIndex)) {
-      const catLower = category.toLowerCase();
-      // Check if query matches the category name
-      if (catLower.includes(q) || q.split(/\s+/).some((word) => catLower.includes(word))) {
-        matches.push({ category, brands });
-      }
-    }
-    // Sort: exact match first, then longest match
-    matches.sort((a, b) => {
-      const aExact = a.category.toLowerCase() === q ? 0 : 1;
-      const bExact = b.category.toLowerCase() === q ? 0 : 1;
-      if (aExact !== bExact) return aExact - bExact;
-      return b.brands.length - a.brands.length;
-    });
-    return matches;
-  }, [searchQuery, searchIndex]);
 
   const defaultSelection: Selection = {
     manufacturerId: null,
@@ -389,8 +346,8 @@ function Home() {
             LB
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight sm:text-2xl" style={{ color: "var(--text-primary)" }}>LockBuilder</h1>
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>{tabMode === "build" ? "Part Number Builder" : "Part Number Decoder"}</p>
+            <h1 className="text-xl font-bold tracking-tight sm:text-2xl" style={{ color: "var(--text-primary)" }}>{t("LockBuilder")}</h1>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>{tabMode === "build" ? t("Part Number Builder") : t("Part Number Decoder")}</p>
           </div>
         </div>
         <div className="flex items-center gap-1 sm:gap-2">
@@ -428,9 +385,9 @@ function Home() {
               <span className="text-xs font-semibold tracking-widest" style={{ color: "var(--text-secondary)" }}>LOGIN</span>
             </button>
           )}
-          <button className="mode-toggle-btn" onClick={cycleMode} title={MODE_LABELS[mode]}
-            aria-label={`Visual mode: ${MODE_LABELS[mode]}. Click to change.`}>
-            <span className="text-base">{MODE_ICONS[mode]}</span>
+          <button className="mode-toggle-btn" onClick={() => setSettingsOpen(true)} title={t("Settings")}
+            aria-label={t("Settings")}>
+            <span className="text-base">⚙</span>
           </button>
         </div>
       </header>
@@ -448,7 +405,7 @@ function Home() {
             minHeight: "44px",
             border: "none",
           }}>
-          🔧 Build
+          🔧 {t("Build")}
         </button>
         <button
           onClick={() => setTabMode("decode")}
@@ -461,7 +418,7 @@ function Home() {
             minHeight: "44px",
             border: "none",
           }}>
-          🔍 Decode
+          🔍 {t("Decode")}
         </button>
       </div>
 
@@ -657,85 +614,6 @@ function Home() {
       {/* ── Build Mode ── */}
       {tabMode === "build" && (
         <>
-          {/* ── Product Search Bar ── */}
-          <div className="mb-4 relative">
-            <label className="label-text" style={{ marginBottom: "4px", display: "block" }}>What are you looking for?</label>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => { setSearchQuery(e.target.value); setSearchCategory(null); }}
-              onFocus={() => setSearchFocused(true)}
-              onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
-              placeholder="e.g., door closer, exit device, entry lever..."
-              className="w-full rounded-lg border px-4 py-3 text-sm transition-colors"
-              style={{
-                backgroundColor: "var(--bg-primary)",
-                color: "var(--text-primary)",
-                borderColor: searchFocused ? "var(--accent)" : "var(--border-color)",
-                minHeight: "48px",
-                outline: "none",
-              }}
-            />
-            {/* Search Results Dropdown */}
-            {searchFocused && searchQuery.length >= 2 && (
-              <div className="absolute z-50 mt-1 w-full rounded-lg border shadow-lg overflow-hidden"
-                style={{
-                  backgroundColor: "var(--bg-primary)",
-                  borderColor: "var(--border-color)",
-                  maxHeight: "320px",
-                  overflowY: "auto",
-                }}>
-                {searchCategory ? (
-                  /* Show brands for selected category */
-                  <>
-                    <button
-                      onMouseDown={() => setSearchCategory(null)}
-                      className="w-full px-4 py-2.5 text-left text-sm font-medium flex items-center gap-2"
-                      style={{ color: "var(--accent)", cursor: "pointer", border: "none", backgroundColor: "transparent", minHeight: "40px" }}>
-                      ← Back to categories
-                    </button>
-                    <div className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)", borderTop: "1px solid var(--border-color)" }}>
-                      {searchCategory} — {searchIndex[searchCategory]?.length || 0} brand{(searchIndex[searchCategory]?.length || 0) !== 1 ? "s" : ""}
-                    </div>
-                    {searchIndex[searchCategory]?.map((entry) => (
-                      <button
-                        key={entry.manufacturerId}
-                        onMouseDown={() => {
-                          updateSelection("manufacturerId", entry.manufacturerId);
-                          setSearchQuery("");
-                          setSearchCategory(null);
-                          setSearchFocused(false);
-                        }}
-                        className="w-full px-4 py-3 text-left text-sm flex items-center justify-between hover:opacity-80"
-                        style={{ cursor: "pointer", border: "none", backgroundColor: "transparent", minHeight: "44px", color: "var(--text-primary)" }}>
-                        <span>{entry.manufacturerName}</span>
-                        <span className="text-xs" style={{ color: "var(--text-muted)" }}>{entry.series}</span>
-                      </button>
-                    ))}
-                  </>
-                ) : searchResults.length > 0 ? (
-                  /* Show matching categories */
-                  searchResults.map((result) => (
-                    <button
-                      key={result.category}
-                      onMouseDown={() => setSearchCategory(result.category)}
-                      className="w-full px-4 py-3 text-left text-sm flex items-center justify-between hover:opacity-80"
-                      style={{ cursor: "pointer", border: "none", backgroundColor: "transparent", minHeight: "44px", color: "var(--text-primary)" }}>
-                      <span>{result.category}</span>
-                      <span className="text-xs rounded-full px-2 py-0.5" style={{ color: "var(--text-muted)", backgroundColor: "color-mix(in srgb, var(--text-muted) 10%, transparent)" }}>
-                        {result.brands.length} brand{result.brands.length !== 1 ? "s" : ""}
-                      </span>
-                    </button>
-                  ))
-                ) : (
-                  <div className="px-4 py-4 text-sm text-center" style={{ color: "var(--text-muted)" }}>
-                    No matching product types found
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
           <div className="mb-4">
         <SearchableSelect
           label="Brand"
@@ -1018,7 +896,7 @@ function Home() {
       {/* Footer */}
       <footer className="mt-10 border-t pt-5 text-center text-xs"
         style={{ borderColor: "var(--border-color)", color: "var(--text-muted)" }}>
-        LockBuilder &mdash; Professional Part Number Builder for Security Professionals
+        LockBuilder &mdash; {t("Part Number Builder")} for Security Professionals
       </footer>
 
       {/* Auth Modal */}
@@ -1028,6 +906,19 @@ function Home() {
           onSuccess={saveSession}
         />
       )}
+
+      {/* Settings Panel */}
+      <SettingsPanel
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        theme={theme}
+        setTheme={setTheme}
+        mode={mode}
+        setMode={setMode}
+        lang={lang}
+        setLang={setLang}
+        t={t}
+      />
 
       {/* Save to Job Modal */}
       {saveJobPart && user && (

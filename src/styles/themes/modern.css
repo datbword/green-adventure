@@ -1,0 +1,51 @@
+/* ── Modern / Art Deco Theme ── */
+
+[data-theme="modern"] {
+  --font-heading: Georgia, 'Times New Roman', serif;
+  --font-body: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Courier New', monospace;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.12);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.15);
+
+  --transition-fast: 200ms ease;
+  --transition-normal: 300ms ease;
+  --transition-slow: 400ms ease;
+}
+
+/* Modern theme decorative border */
+[data-theme="modern"] .mode-toggle-btn,
+[data-theme="modern"] button:not([style*="border"]) {
+  border: 1px solid var(--border-color);
+}
+
+[data-theme="modern"] .searchable-select input {
+  border-style: inset;
+}
+
+/* Modern theme pattern on bg-secondary cards */
+[data-theme="modern"] .part-number-display {
+  border-width: 2px;
+  border-style: double;
+}
+
+/* Modern: gold accent on primary buttons */
+[data-theme="modern"] button[style*="--accent"] {
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+[data-theme="modern"] button[style*="--accent"]:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Modern: styled headings */
+[data-theme="modern"] h1 {
+  font-family: var(--font-heading);
+  letter-spacing: 0.02em;
+}

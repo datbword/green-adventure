@@ -1,4 +1,7 @@
 @import "tailwindcss";
+@import "./themes/standard.css";
+@import "./themes/modern.css";
+@import "./themes/futuristic.css";
 
 /* ── Approved Brand Colors ── */
 :root {
