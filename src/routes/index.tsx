@@ -17,6 +17,7 @@ import { useAuth } from "~/hooks/useAuth";
 import { I18nProvider, useI18n } from "~/i18n/context";
 import type { ManufacturerData, ManufacturerOption, ProductSeries, SeriesOption, Selection, DataCache, CrossRefFamily } from "~/types";
 import { CrossReferences } from "~/components/CrossReferences";
+import { buildSearchIndex, searchProducts, getFilterOptions, type SearchFilters, type SearchResult } from "~/utils/product-search";
 import type { SavedPart } from "~/utils/jobs";
 
 // ── Server Data Loading ──
@@ -85,7 +86,7 @@ function Home() {
   const [contactOpen, setContactOpen] = useState(false);
 
   // Decode mode state
-  const [tabMode, setTabMode] = useState<"build" | "decode">("build");
+  const [tabMode, setTabMode] = useState<"build" | "decode" | "find">("build");
   const [decodeInput, setDecodeInput] = useState("");
   const [decodeResult, setDecodeResult] = useState<DecodeResult | null>(null);
   const [decodeAllResults, setDecodeAllResults] = useState<DecodeResult[]>([]);
@@ -93,6 +94,12 @@ function Home() {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [activeSuggestion, setActiveSuggestion] = useState(-1);
   const [showSuggestions, setShowSuggestions] = useState(false);
+
+  // Find mode state
+  const [findQuery, setFindQuery] = useState("");
+  const [findCategory, setFindCategory] = useState<string>("");
+  const [findGrade, setFindGrade] = useState<string>("");
+  const [findCommercial, setFindCommercial] = useState<boolean | undefined>(undefined);
 
   const defaultSelection: Selection = {
     manufacturerId: null,
@@ -371,6 +378,20 @@ function Home() {
     return map;
   }, [data.manufacturers]);
 
+  // Search index for Find tab
+  const searchIndex = useMemo(() => buildSearchIndex(data.manufacturerFiles), [data.manufacturerFiles]);
+  const filterOptions = useMemo(() => getFilterOptions(searchIndex), [searchIndex]);
+
+  const findResults = useMemo(() => {
+    const filters: SearchFilters = {
+      query: findQuery,
+      category: findCategory || undefined,
+      grade: findGrade || undefined,
+      commercial: findCommercial,
+    };
+    return searchProducts(searchIndex, filters, 40);
+  }, [searchIndex, findQuery, findCategory, findGrade, findCommercial]);
+
   return (
     <div className="mx-auto max-w-2xl px-4 py-5 sm:px-6 sm:py-8">
       {/* Header */}
@@ -382,7 +403,7 @@ function Home() {
           </div>
           <div>
             <h1 className="text-xl font-bold tracking-tight sm:text-2xl" style={{ color: "var(--text-primary)" }}>{t("LockBuilder")}</h1>
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>{tabMode === "build" ? t("Part Number Builder") : t("Part Number Decoder")}</p>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>{tabMode === "build" ? t("Part Number Builder") : tabMode === "decode" ? t("Part Number Decoder") : t("Find Products")}</p>
           </div>
         </div>
         <div className="flex items-center gap-1 sm:gap-2">
@@ -457,6 +478,19 @@ function Home() {
             border: "none",
           }}>
           🔍 {t("Decode")}
+        </button>
+        <button
+          onClick={() => setTabMode("find")}
+          className="flex-1 rounded-lg py-2.5 text-sm font-medium transition-colors"
+          style={{
+            backgroundColor: tabMode === "find" ? "var(--bg-primary)" : "transparent",
+            color: tabMode === "find" ? "var(--text-primary)" : "var(--text-muted)",
+            boxShadow: tabMode === "find" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+            cursor: "pointer",
+            minHeight: "44px",
+            border: "none",
+          }}>
+          🔎 {t("Find")}
         </button>
       </div>
 
@@ -723,6 +757,197 @@ function Home() {
               </p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Find Mode ── */}
+      {tabMode === "find" && (
+        <div className="space-y-4">
+          {/* Search bar */}
+          <div>
+            <label className="label-text">Search Products</label>
+            <input
+              type="text"
+              value={findQuery}
+              onChange={(e) => setFindQuery(e.target.value)}
+              placeholder="Search by name, series, brand, or category..."
+              className="mt-1 w-full rounded-lg border px-4 py-3 text-sm transition-colors"
+              style={{
+                backgroundColor: "var(--bg-primary)",
+                color: "var(--text-primary)",
+                borderColor: "var(--border-color)",
+                minHeight: "48px",
+                outline: "none",
+              }}
+            />
+          </div>
+
+          {/* Filter chips */}
+          <div className="flex flex-wrap gap-2">
+            {/* Category filter */}
+            {filterOptions.categories.map((cat) => (
+              <button
+                key={cat.value}
+                onClick={() => setFindCategory(findCategory === cat.value ? "" : cat.value)}
+                className="rounded-full px-3 py-1.5 text-xs font-medium transition-colors"
+                style={{
+                  backgroundColor: findCategory === cat.value ? "var(--accent)" : "color-mix(in srgb, var(--accent) 10%, transparent)",
+                  color: findCategory === cat.value ? "#fff" : "var(--accent)",
+                  cursor: "pointer",
+                  minHeight: "32px",
+                  border: "none",
+                }}>
+                {cat.label} ({cat.count})
+              </button>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {/* Grade filter */}
+            {filterOptions.grades.map((g) => (
+              <button
+                key={g.value}
+                onClick={() => setFindGrade(findGrade === g.value ? "" : g.value)}
+                className="rounded-full px-3 py-1.5 text-xs font-medium transition-colors"
+                style={{
+                  backgroundColor: findGrade === g.value ? "var(--brass)" : "color-mix(in srgb, var(--brass) 10%, transparent)",
+                  color: findGrade === g.value ? "#fff" : "var(--brass)",
+                  cursor: "pointer",
+                  minHeight: "32px",
+                  border: "none",
+                }}>
+                {g.label} ({g.count})
+              </button>
+            ))}
+            {/* Commercial/Residential toggle */}
+            <button
+              onClick={() => setFindCommercial(findCommercial === true ? undefined : true)}
+              className="rounded-full px-3 py-1.5 text-xs font-medium transition-colors"
+              style={{
+                backgroundColor: findCommercial === true ? "#1B2A4A" : "color-mix(in srgb, #1B2A4A 10%, transparent)",
+                color: findCommercial === true ? "#fff" : "#1B2A4A",
+                cursor: "pointer",
+                minHeight: "32px",
+                border: "none",
+              }}>
+              🏢 Commercial
+            </button>
+            <button
+              onClick={() => setFindCommercial(findCommercial === false ? undefined : false)}
+              className="rounded-full px-3 py-1.5 text-xs font-medium transition-colors"
+              style={{
+                backgroundColor: findCommercial === false ? "#6B6B6B" : "color-mix(in srgb, #6B6B6B 10%, transparent)",
+                color: findCommercial === false ? "#fff" : "#6B6B6B",
+                cursor: "pointer",
+                minHeight: "32px",
+                border: "none",
+              }}>
+              🏠 Residential
+            </button>
+          </div>
+
+          {/* Results count */}
+          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+            {findResults.length} product{findResults.length !== 1 ? "s" : ""} found
+            {(findQuery || findCategory || findGrade || findCommercial !== undefined) && (
+              <button
+                onClick={() => {
+                  setFindQuery("");
+                  setFindCategory("");
+                  setFindGrade("");
+                  setFindCommercial(undefined);
+                }}
+                className="ml-2 underline"
+                style={{ color: "var(--accent)", background: "none", border: "none", cursor: "pointer" }}>
+                Clear filters
+              </button>
+            )}
+          </p>
+
+          {/* Results list */}
+          <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+            {findResults.length === 0 && findQuery && (
+              <p className="py-8 text-center text-sm" style={{ color: "var(--text-muted)" }}>
+                No products found. Try adjusting your search or filters.
+              </p>
+            )}
+            {findResults.map((result, idx) => {
+              const words = result.manufacturerName.split(/[\s-]+/);
+              const initials = words.length >= 2 ? (words[0][0] + words[1][0]).toUpperCase() : result.manufacturerName.slice(0, 2).toUpperCase();
+              return (
+                <div
+                  key={`${result.manufacturerId}-${result.series}-${idx}`}
+                  className="flex items-center gap-3 rounded-lg p-3 transition-colors"
+                  style={{
+                    backgroundColor: "var(--bg-secondary)",
+                    border: "1px solid var(--border-color)",
+                    minHeight: "56px",
+                  }}>
+                  <div
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-xs font-bold"
+                    style={{
+                      backgroundColor: "color-mix(in srgb, var(--accent) 12%, transparent)",
+                      color: "var(--accent)",
+                    }}>
+                    {initials}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                      {result.productName}
+                    </p>
+                    <div className="mt-0.5 flex flex-wrap gap-1.5">
+                      <span className="rounded px-1.5 py-0.5 text-xs" style={{ backgroundColor: "var(--bg-tertiary)", color: "var(--text-muted)" }}>
+                        {result.manufacturerName}
+                      </span>
+                      <span className="rounded px-1.5 py-0.5 text-xs" style={{ backgroundColor: "var(--bg-tertiary)", color: "var(--text-muted)" }}>
+                        {result.category}
+                      </span>
+                      {result.grade !== "—" && (
+                        <span className="rounded px-1.5 py-0.5 text-xs font-medium" style={{ backgroundColor: "color-mix(in srgb, var(--brass) 15%, transparent)", color: "var(--brass)" }}>
+                          {result.grade === "residential" ? "Residential" : `Grade ${result.grade}`}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSelection((prev) => ({
+                        ...prev,
+                        manufacturerId: result.manufacturerId,
+                        manufacturerName: result.manufacturerName,
+                        series: null,
+                        pins: null,
+                      }));
+                      // Find and select the actual series object
+                      const manuData = data.manufacturerFiles[result.manufacturerId];
+                      if (manuData) {
+                        const matched = manuData.products.find((p) => p.series === result.series);
+                        if (matched) {
+                          setTimeout(() => {
+                            setSelection((prev) => ({
+                              ...prev,
+                              series: matched,
+                              pins: null,
+                            }));
+                          }, 50);
+                        }
+                      }
+                      setTabMode("build");
+                    }}
+                    className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
+                    style={{
+                      backgroundColor: "var(--accent)",
+                      color: "#fff",
+                      cursor: "pointer",
+                      minHeight: "36px",
+                      border: "none",
+                    }}>
+                    Select
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
