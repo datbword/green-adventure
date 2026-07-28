@@ -13,6 +13,13 @@ export interface ManufacturerData {
   diagramUrls: { label: string; url: string }[];
   products: ProductSeries[];
   crossReferences: Record<string, Record<string, string>>;
+  contact?: {
+    customerService: { phone: string; email: string };
+    techSupport: { phone: string; email: string };
+    address: string;
+    timezone: string;
+    website: string;
+  };
 }
 
 export interface ProductSeries {
@@ -46,9 +53,27 @@ export interface Selection {
   options: Record<string, SeriesOption | null>;
 }
 
+export interface CrossRefProduct {
+  manufacturerId: string;
+  productName: string;
+  series: string;
+}
+
+export interface CrossRefFamily {
+  id: string;
+  name: string;
+  description: string;
+  products: CrossRefProduct[];
+}
+
+export interface CrossRefData {
+  families: CrossRefFamily[];
+}
+
 export interface DataCache {
   manufacturers: ManufacturerOption[];
   manufacturerFiles: Record<string, ManufacturerData>;
+  crossReferences: CrossRefData | null;
 }
 
 export interface FieldConfig {

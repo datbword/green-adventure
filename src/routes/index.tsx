@@ -7,14 +7,16 @@ import { AuthModal } from "~/components/AuthModal";
 import { UserMenu } from "~/components/UserMenu";
 import { SaveToJobModal } from "~/components/SaveToJobModal";
 import { SettingsPanel } from "~/components/SettingsPanel";
+import { ContactModal, type ContactInfo } from "~/components/ContactModal";
 import { buildPartNumber, buildPartialPartNumber, findCrossReferences, isComplete, getActiveFields, getFieldCounts, getFieldLabel, getFieldPlaceholder } from "~/utils/part-builder";
-import { decodePartNumber, tryPartialDecode, type DecodeResult } from "~/utils/part-decoder";
+import { decodePartNumber, tryPartialDecode, generateSuggestions, type DecodeResult, type Suggestion } from "~/utils/part-decoder";
 import type { ConversionResult } from "~/utils/option-converter";
 import { useVisualMode } from "~/hooks/useVisualMode";
 import { useSettings } from "~/hooks/useSettings";
 import { useAuth } from "~/hooks/useAuth";
 import { I18nProvider, useI18n } from "~/i18n/context";
-import type { ManufacturerData, ManufacturerOption, ProductSeries, SeriesOption, Selection, DataCache } from "~/types";
+import type { ManufacturerData, ManufacturerOption, ProductSeries, SeriesOption, Selection, DataCache, CrossRefFamily } from "~/types";
+import { CrossReferences } from "~/components/CrossReferences";
 import type { SavedPart } from "~/utils/jobs";
 
 // ── Server Data Loading ──
@@ -47,7 +49,17 @@ const loadAllData = createServerFn({ method: "GET" }).handler(async (): Promise<
   }
   manufacturers.sort((a, b) => a.name.localeCompare(b.name));
 
-  return { manufacturers, manufacturerFiles };
+  // Load cross-references data
+  let crossReferences = null;
+  if (allFiles.includes("cross-references.json")) {
+    try {
+      crossReferences = await loadJson<{ families: CrossRefFamily[] }>(`${base}/cross-references.json`);
+    } catch {
+      crossReferences = null;
+    }
+  }
+
+  return { manufacturers, manufacturerFiles, crossReferences };
 });
 
 export const Route = createFileRoute("/")({
@@ -70,6 +82,7 @@ function Home() {
   const [saveJobPart, setSaveJobPart] = useState<SavedPart | null>(null);
   const [saveToast, setSaveToast] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [contactOpen, setContactOpen] = useState(false);
 
   // Decode mode state
   const [tabMode, setTabMode] = useState<"build" | "decode">("build");
@@ -77,6 +90,9 @@ function Home() {
   const [decodeResult, setDecodeResult] = useState<DecodeResult | null>(null);
   const [decodeAllResults, setDecodeAllResults] = useState<DecodeResult[]>([]);
   const [decodeError, setDecodeError] = useState("");
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [activeSuggestion, setActiveSuggestion] = useState(-1);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   const defaultSelection: Selection = {
     manufacturerId: null,
@@ -330,11 +346,30 @@ function Home() {
     return buildPartialPartNumber(selection, selection.series);
   }, [selection, fieldSelected]);
 
-  // Cross-references from the manufacturer data
+  // Cross-references from the manufacturer data (exact part number matches)
   const crossRefs = useMemo(() => {
     if (!partNumber || !currentManufacturer) return [];
     return findCrossReferences(partNumber, currentManufacturer.crossReferences);
   }, [partNumber, currentManufacturer]);
+
+  // Series-based cross-references from cross-references.json
+  const seriesCrossRefFamilies = useMemo(() => {
+    if (!data.crossReferences?.families || !selection.series || !selection.manufacturerId) return [];
+    const seriesCode = selection.series.series;
+    const mfrId = selection.manufacturerId;
+    return data.crossReferences.families.filter((family) =>
+      family.products.some((p) => p.manufacturerId === mfrId && p.series === seriesCode)
+    );
+  }, [data.crossReferences, selection.series, selection.manufacturerId]);
+
+  // Build manufacturer name map for CrossReferences component
+  const manufacturerNameMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const m of data.manufacturers) {
+      map[m.id] = m.name;
+    }
+    return map;
+  }, [data.manufacturers]);
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-5 sm:px-6 sm:py-8">
@@ -371,6 +406,9 @@ function Home() {
               <path d="M6 9L12 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
               <path d="M10 7L12 9L10 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
+          </Link>
+          <Link to="/donjo" className="mode-toggle-btn" title="Don-Jo Catalog" aria-label="Don-Jo Catalog">
+            <span className="text-xs font-semibold tracking-wider" style={{ color: "var(--text-secondary)" }}>DON-JO</span>
           </Link>
           {user ? (
             <div className="flex items-center gap-1 sm:gap-2">
@@ -426,7 +464,7 @@ function Home() {
       {tabMode === "decode" && (
         <div className="space-y-4">
           {/* Decode Input */}
-          <div>
+          <div className="relative">
             <label className="label-text">Paste a Part Number</label>
             <div className="mt-1 flex gap-2">
               <input
@@ -437,8 +475,47 @@ function Home() {
                   setDecodeResult(null);
                   setDecodeAllResults([]);
                   setDecodeError("");
+                  // Generate suggestions
+                  const val = e.target.value;
+                  if (val.length >= 1) {
+                    const suggs = generateSuggestions(val, data.manufacturerFiles, 12);
+                    setSuggestions(suggs);
+                    setShowSuggestions(suggs.length > 0);
+                    setActiveSuggestion(-1);
+                  } else {
+                    setSuggestions([]);
+                    setShowSuggestions(false);
+                  }
                 }}
                 onKeyDown={(e) => {
+                  // Handle suggestion navigation
+                  if (showSuggestions && suggestions.length > 0) {
+                    if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      setActiveSuggestion((i) => Math.min(i + 1, suggestions.length - 1));
+                      return;
+                    }
+                    if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      setActiveSuggestion((i) => Math.max(i - 1, 0));
+                      return;
+                    }
+                    if (e.key === "Enter" && activeSuggestion >= 0) {
+                      e.preventDefault();
+                      const selected = suggestions[activeSuggestion];
+                      setDecodeInput(selected.partNumber);
+                      setShowSuggestions(false);
+                      setSuggestions([]);
+                      const result = decodePartNumber(selected.partNumber, data.manufacturerFiles, selected.manufacturerId);
+                      if (result) { setDecodeResult(result); setDecodeAllResults([]); setDecodeError(""); }
+                      return;
+                    }
+                    if (e.key === "Escape") {
+                      setShowSuggestions(false);
+                      return;
+                    }
+                  }
+                  // Original decode logic
                   if (e.key === "Enter") {
                     const result = decodePartNumber(decodeInput, data.manufacturerFiles);
                     if (result) {
@@ -500,6 +577,44 @@ function Home() {
               </button>
             </div>
           </div>
+
+          {/* Autocomplete suggestions */}
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="absolute z-50 mt-1 w-full max-h-72 overflow-auto rounded-lg border shadow-lg"
+              style={{ borderColor: "var(--border-color)", backgroundColor: "var(--bg-secondary)" }}>
+              {suggestions.map((s, i) => (
+                <div
+                  key={s.partNumber}
+                  className="px-4 py-2.5 cursor-pointer transition-colors flex flex-col gap-0.5"
+                  style={{
+                    backgroundColor: i === activeSuggestion ? "color-mix(in srgb, var(--accent) 10%, transparent)" : "transparent",
+                    borderLeft: i === activeSuggestion ? "3px solid var(--accent)" : "3px solid transparent",
+                    cursor: "pointer",
+                    minHeight: "44px",
+                  }}
+                  onClick={() => {
+                    setDecodeInput(s.partNumber);
+                    setShowSuggestions(false);
+                    setSuggestions([]);
+                    const result = decodePartNumber(s.partNumber, data.manufacturerFiles, s.manufacturerId);
+                    if (result) { setDecodeResult(result); setDecodeAllResults([]); setDecodeError(""); }
+                  }}
+                  onMouseEnter={() => setActiveSuggestion(i)}
+                >
+                  <span className="font-mono text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                    {s.partNumber.substring(0, s.matchStart)}
+                    <span style={{ color: "var(--accent)", fontWeight: 700 }}>
+                      {s.partNumber.substring(s.matchStart, s.matchEnd)}
+                    </span>
+                    {s.partNumber.substring(s.matchEnd)}
+                  </span>
+                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                    {s.manufacturerName} — {s.seriesName}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Error message */}
           {decodeError && (
@@ -625,6 +740,26 @@ function Home() {
           showCode={false}
         />
       </div>
+
+          {/* Contact button — only when manufacturer is selected and has contact info */}
+          {currentManufacturer?.contact && (
+            <div className="mb-4">
+              <button
+                onClick={() => setContactOpen(true)}
+                className="w-full rounded-lg px-4 py-3 text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                style={{
+                  backgroundColor: "color-mix(in srgb, var(--accent) 8%, transparent)",
+                  color: "var(--accent)",
+                  border: "1px solid color-mix(in srgb, var(--accent) 20%, transparent)",
+                  cursor: "pointer",
+                  minHeight: "44px",
+                }}
+              >
+                <span>📞</span>
+                <span>Contact {currentManufacturer.manufacturer}</span>
+              </button>
+            </div>
+          )}
 
       {/* Only show further fields once manufacturer is selected */}
       {currentManufacturer && (
@@ -842,6 +977,54 @@ function Home() {
             </div>
           )}
 
+          {/* Series-Based Cross-References */}
+          <CrossReferences
+            families={seriesCrossRefFamilies}
+            currentManufacturerId={selection.manufacturerId ?? ""}
+            currentSeries={selection.series?.series ?? ""}
+            manufacturerNames={manufacturerNameMap}
+            onSelect={(mfrId, seriesCode) => {
+              // Switch manufacturer and series
+              if (mfrId !== selection.manufacturerId) {
+                setSelection((prev) => ({
+                  ...prev,
+                  manufacturerId: mfrId,
+                  manufacturerName: data.manufacturers.find((m) => m.id === mfrId)?.name ?? null,
+                  series: null,
+                  pins: null,
+                }));
+                // After manufacturer switch, we'd need to find and select the series
+                // But since we're doing this async, we'll queue it
+                setTimeout(() => {
+                  const manuData = data.manufacturerFiles[mfrId];
+                  if (manuData) {
+                    const matchedSeries = manuData.products.find((p) => p.series === seriesCode);
+                    if (matchedSeries) {
+                      setSelection((prev) => ({
+                        ...prev,
+                        series: matchedSeries,
+                        pins: null,
+                      }));
+                    }
+                  }
+                }, 50);
+              } else {
+                // Same manufacturer, just switch series
+                const manuData = data.manufacturerFiles[mfrId];
+                if (manuData) {
+                  const matchedSeries = manuData.products.find((p) => p.series === seriesCode);
+                  if (matchedSeries) {
+                    setSelection((prev) => ({
+                      ...prev,
+                      series: matchedSeries,
+                      pins: null,
+                    }));
+                  }
+                }
+              }
+            }}
+          />
+
           {/* Cross-References */}
           {crossRefs.length > 0 && (
             <section className="mt-6">
@@ -919,6 +1102,16 @@ function Home() {
         setLang={setLang}
         t={t}
       />
+
+      {/* Contact Modal */}
+      {currentManufacturer?.contact && (
+        <ContactModal
+          open={contactOpen}
+          onClose={() => setContactOpen(false)}
+          brandName={currentManufacturer.manufacturer}
+          contact={currentManufacturer.contact as ContactInfo}
+        />
+      )}
 
       {/* Save to Job Modal */}
       {saveJobPart && user && (
