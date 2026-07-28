@@ -93,6 +93,8 @@ function Home() {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [activeSuggestion, setActiveSuggestion] = useState(-1);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [copiedPartial, setCopiedPartial] = useState(false);
 
   const defaultSelection: Selection = {
     manufacturerId: null,
@@ -796,7 +798,37 @@ function Home() {
                 /* Complete part number */
                 <section className="part-number-display mb-3">
                   <p className="mb-1 text-xs font-medium uppercase tracking-widest" style={{ color: "var(--success)" }}>Complete Part Number</p>
-                  <p className="part-number">{partNumber}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="part-number flex-1">{partNumber}</p>
+                    <button
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(partNumber!);
+                          setCopied(true);
+                          setTimeout(() => setCopied(false), 2000);
+                        } catch {
+                          // Fallback for older browsers
+                          const ta = document.createElement("textarea");
+                          ta.value = partNumber!;
+                          document.body.appendChild(ta);
+                          ta.select();
+                          document.execCommand("copy");
+                          document.body.removeChild(ta);
+                          setCopied(true);
+                          setTimeout(() => setCopied(false), 2000);
+                        }
+                      }}
+                      className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
+                      style={{
+                        backgroundColor: copied ? "color-mix(in srgb, #2E7D32 15%, transparent)" : "color-mix(in srgb, var(--accent) 10%, transparent)",
+                        color: copied ? "#2E7D32" : "var(--accent)",
+                        border: copied ? "1px solid color-mix(in srgb, #2E7D32 30%, transparent)" : "1px solid color-mix(in srgb, var(--accent) 20%, transparent)",
+                        cursor: "pointer",
+                        minHeight: "36px",
+                      }}>
+                      {copied ? "✓ Copied!" : "📋 Copy"}
+                    </button>
+                  </div>
                   {selection.series?.examples && (
                     <p className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
                       Examples: {selection.series.examples.join(", ")}
@@ -833,7 +865,36 @@ function Home() {
                 <section className="mb-3 rounded-lg border border-dashed p-4"
                   style={{ borderColor: "var(--border-color)", backgroundColor: "var(--bg-secondary)" }}>
                   <p className="mb-1 text-xs font-medium uppercase tracking-widest" style={{ color: "var(--brass)" }}>Partial Part Number</p>
-                  <p className="part-number" style={{ opacity: 0.7 }}>{partialPartNumber}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="part-number flex-1" style={{ opacity: 0.7 }}>{partialPartNumber}</p>
+                    <button
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(partialPartNumber!);
+                          setCopiedPartial(true);
+                          setTimeout(() => setCopiedPartial(false), 2000);
+                        } catch {
+                          const ta = document.createElement("textarea");
+                          ta.value = partialPartNumber!;
+                          document.body.appendChild(ta);
+                          ta.select();
+                          document.execCommand("copy");
+                          document.body.removeChild(ta);
+                          setCopiedPartial(true);
+                          setTimeout(() => setCopiedPartial(false), 2000);
+                        }
+                      }}
+                      className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
+                      style={{
+                        backgroundColor: copiedPartial ? "color-mix(in srgb, #2E7D32 15%, transparent)" : "color-mix(in srgb, var(--accent) 10%, transparent)",
+                        color: copiedPartial ? "#2E7D32" : "var(--accent)",
+                        border: copiedPartial ? "1px solid color-mix(in srgb, #2E7D32 30%, transparent)" : "1px solid color-mix(in srgb, var(--accent) 20%, transparent)",
+                        cursor: "pointer",
+                        minHeight: "36px",
+                      }}>
+                      {copiedPartial ? "✓ Copied!" : "📋 Copy"}
+                    </button>
+                  </div>
                   <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
                     Select all {fieldTotal} options to complete ({fieldTotal - fieldSelected} remaining)
                   </p>
