@@ -21,7 +21,7 @@ import { CrossReferences } from "~/components/CrossReferences";
 import { buildSearchIndex, searchProducts, laymanSearch, getFilterOptions, type SearchFilters, type SearchResult } from "~/utils/product-search";
 import { UUS_CATEGORIES, UUS_GRADES, UUS_FUNCTIONS, UUS_DESIGN_STYLES, UUS_CYLINDER_TYPES, type UusSynonymsFile } from "~/utils/uus";
 import { findUusCandidates, mapUusSelection, type UusBuildSelection } from "~/utils/uus-build";
-import { autoCorrectSelection, getAvailableValues, validateUusMapping, evaluateConstraints, extractConstraintState, UUS_FIELDS, type ConstraintTable, type AutoCorrection } from "~/utils/uus-constraints";
+import { autoCorrectSelection, getAvailableValues, getConstraintForbiddenValues, validateUusMapping, evaluateState, extractConstraintState, UUS_FIELDS, type ConstraintTable, type AutoCorrection, type ConstraintState } from "~/utils/uus-constraints";
 import type { SavedPart } from "~/utils/jobs";
 import { LOCK_FUNCTIONS } from "~/utils/lock-functions";
 import { HANDING_TYPES } from "~/utils/door-handing";
@@ -189,7 +189,24 @@ function Home() {
     setTimeout(() => setConstraintToasts((prev) => prev.filter((c) => !cs.includes(c))), 6000);
   };
 
-  const constraintTable = (data as DataCache).constraintTable as ConstraintTable | null;
+  const [constraintTable, setConstraintTable] = useState<ConstraintTable | null>(
+    (data as DataCache).constraintTable as ConstraintTable | null,
+  );
+  // DEV-ONLY: ?uusTest=1 merges public/data/constraint-table.test.json (synthetic ACTIVE rows) into the
+  // in-memory table to demonstrate toasts/interlocking/hard-block in a browser walk-through.
+  // Never shipped: production serves the shipped table (0 active rows) unless the flag is present.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!new URLSearchParams(window.location.search).has("uusTest")) return;
+    fetch("/data/constraint-table.test.json")
+      .then((r) => r.json())
+      .then((t: ConstraintTable) => {
+        if (t?.rows?.length) {
+          setConstraintTable((prev) => ({ rows: [...(prev?.rows ?? []), ...t.rows] }));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Phase C interlocking: for each UUS field, which values remain possible given the other selections?
   const uusFieldDomain: Record<string, string[]> = {
@@ -208,22 +225,52 @@ function Home() {
     return out;
   }, [data.manufacturerFiles, uusSel]);
 
-  // Phase C: active table-row evaluation against the current selection (all seed rows are inactive; engine ready)
-  const constraintViolations = useMemo(() => {
-    if (!selection.series) return [];
-    const state = extractConstraintState(uusSel, selection.manufacturerId);
-    return evaluateConstraints(state, constraintTable);
-  }, [uusSel, selection.series, selection.manufacturerId, constraintTable]);
+  // Phase C (owner spec): EXTRACT — current build selection mapped to UUS attribute values
+  // (UUS fields + product option fields). Brand-scoped constraint rows fire only when a brand is known.
+  const constraintState = useMemo<ConstraintState>(() => {
+    return extractConstraintState(uusSel, selection.manufacturerId, selection.options);
+  }, [uusSel, selection.manufacturerId, selection.options]);
 
-  /** UUS field change handler with the Validation Loop: auto-correct on conflict, toast, hard block. */
+  // Dynamic interlocking by ACTIVE constraint rows: candidate values whose selection would trigger a
+  // correction or a hard block are grayed out. Recomputes on every change. (0 active rows today → empty.)
+  const constraintForbidden = useMemo(() => {
+    const out: Record<string, Set<string>> = {};
+    for (const field of UUS_FIELDS) {
+      out[field] = getConstraintForbiddenValues(constraintTable, constraintState, field, uusFieldDomain[field] ?? []);
+    }
+    return out;
+  }, [constraintTable, constraintState]);
+
+  /** Combined interlocking for a UUS value: unavailable when no product supports it (data-derived)
+   *  OR when an ACTIVE constraint row would fire a correction/block if it were selected. */
+  const uusValueUnavailable = (field: string, k: string): boolean =>
+    !(uusAvailable[field]?.has(k) ?? true) || (constraintForbidden[field]?.has(k) ?? false);
+
+  /** UUS field change handler with the Validation Loop (owner architecture):
+   *  1. data-derived auto-correct (preserves the user's just-changed field — e.g. upgrade grade to
+   *     keep the option they picked),
+   *  2. evaluateState over the Constraint_Table (EXTRACT → EVALUATE → EXECUTE, bounded loop),
+   *  3. apply UUS-field corrections to the form state, toast every correction,
+   *  4. hard block when blocked:true — no part number can be generated. */
   const setUusField = (field: keyof UusBuildSelection, value: string) => {
     setConstraintBlocked(null);
-    const next: UusBuildSelection = { ...uusSel, [field]: value || undefined };
-    const result = autoCorrectSelection(data.manufacturerFiles, next, field as never);
-    setUusSel(result.selection);
-    pushToasts(result.corrections);
-    if (result.blocked) {
-      setConstraintBlocked(result.blockMessage ?? "That combination isn't available — try fewer attributes.");
+    let next: UusBuildSelection = { ...uusSel, [field]: value || undefined };
+    const dataCorrection = autoCorrectSelection(data.manufacturerFiles, next, field as never);
+    next = dataCorrection.selection;
+    const state = extractConstraintState(next, selection.manufacturerId, selection.options);
+    const loop = evaluateState(state, constraintTable);
+    const loopCorrections: AutoCorrection[] = loop.corrections.map((c) => ({ field: c.field, from: c.from, to: c.to, message: c.message }));
+    for (const c of loop.corrections) {
+      if ((UUS_FIELDS as readonly string[]).includes(c.field)) {
+        next = { ...next, [c.field]: c.to || undefined };
+      }
+    }
+    setUusSel(next);
+    pushToasts([...dataCorrection.corrections, ...loopCorrections]);
+    if (dataCorrection.blocked) {
+      setConstraintBlocked(dataCorrection.blockMessage ?? "That combination isn't available — try fewer attributes.");
+    } else if (loop.blocked) {
+      setConstraintBlocked(loop.messages.join(" ") || "Those options can't be combined — try changing your selection.");
     }
   };
 
@@ -462,19 +509,21 @@ function Home() {
     return getFieldCounts(selection.series, selection);
   }, [selection.series, selection]);
 
-  // Build the full part number (only when complete)
+  // Build the full part number (only when complete) — HARD BLOCKED when a constraint row says blocked:true
   const partNumber = useMemo(() => {
+    if (constraintBlocked) return null; // Phase C: do not emit a part number for an invalid combination
     if (!selection.series || !isComplete(selection)) return null;
     return buildPartNumber(selection, selection.series);
-  }, [selection]);
+  }, [selection, constraintBlocked]);
 
   // Build the partial part number (always, even when incomplete)
   const partialPartNumber = useMemo(() => {
+    if (constraintBlocked) return null; // Phase C hard block — do not emit a partial string either
     if (!selection.series) return null;
     // Only show partial if at least one field is selected
     if (fieldSelected === 0) return null;
     return buildPartialPartNumber(selection, selection.series);
-  }, [selection, fieldSelected]);
+  }, [selection, fieldSelected, constraintBlocked]);
 
   // Cross-references from the manufacturer data (exact part number matches)
   const crossRefs = useMemo(() => {
@@ -1344,7 +1393,7 @@ function Home() {
                     className="w-full rounded-lg border px-2 py-2 text-sm" style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)", borderColor: "var(--border-color)" }}>
                     <option value="">Any</option>
                     {Object.entries(UUS_CATEGORIES).filter(([k]) => !["other", "key-blank", "key-machine", "software"].includes(k)).map(([k, label]) => (
-                      <option key={k} value={k} disabled={uusSel.category !== k && !(uusAvailable.category?.has(k) ?? true)}>{label}{uusSel.category !== k && !(uusAvailable.category?.has(k) ?? true) ? " — n/a" : ""}</option>
+                      <option key={k} value={k} disabled={uusSel.category !== k && uusValueUnavailable("category", k)}>{label}{uusSel.category !== k && uusValueUnavailable("category", k) ? " — n/a" : ""}</option>
                     ))}
                   </select>
                 </div>
@@ -1354,7 +1403,7 @@ function Home() {
                     className="w-full rounded-lg border px-2 py-2 text-sm" style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)", borderColor: "var(--border-color)" }}>
                     <option value="">Any</option>
                     {Object.entries(UUS_GRADES).map(([k, label]) => (
-                      <option key={k} value={k} disabled={uusSel.grade !== k && !(uusAvailable.grade?.has(k) ?? true)}>{label}{uusSel.grade !== k && !(uusAvailable.grade?.has(k) ?? true) ? " — n/a" : ""}</option>
+                      <option key={k} value={k} disabled={uusSel.grade !== k && uusValueUnavailable("grade", k)}>{label}{uusSel.grade !== k && uusValueUnavailable("grade", k) ? " — n/a" : ""}</option>
                     ))}
                   </select>
                 </div>
@@ -1364,7 +1413,7 @@ function Home() {
                     className="w-full rounded-lg border px-2 py-2 text-sm" style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)", borderColor: "var(--border-color)" }}>
                     <option value="">Any</option>
                     {["passage", "privacy", "entrance", "office", "storeroom", "classroom", "classroom-security", "communicating", "dummy", "deadbolt"].map((k) => (
-                      <option key={k} value={k} disabled={uusSel.function !== k && !(uusAvailable.function?.has(k) ?? true)}>{UUS_FUNCTIONS[k]}{uusSel.function !== k && !(uusAvailable.function?.has(k) ?? true) ? " — n/a" : ""}</option>
+                      <option key={k} value={k} disabled={uusSel.function !== k && uusValueUnavailable("function", k)}>{UUS_FUNCTIONS[k]}{uusSel.function !== k && uusValueUnavailable("function", k) ? " — n/a" : ""}</option>
                     ))}
                   </select>
                 </div>
@@ -1374,7 +1423,7 @@ function Home() {
                     className="w-full rounded-lg border px-2 py-2 text-sm" style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)", borderColor: "var(--border-color)" }}>
                     <option value="">Any</option>
                     {["straight", "curved", "flat", "ornate", "knob"].map((k) => (
-                      <option key={k} value={k} disabled={uusSel.style !== k && !(uusAvailable.style?.has(k) ?? true)}>{UUS_DESIGN_STYLES[k]}{uusSel.style !== k && !(uusAvailable.style?.has(k) ?? true) ? " — n/a" : ""}</option>
+                      <option key={k} value={k} disabled={uusSel.style !== k && uusValueUnavailable("style", k)}>{UUS_DESIGN_STYLES[k]}{uusSel.style !== k && uusValueUnavailable("style", k) ? " — n/a" : ""}</option>
                     ))}
                   </select>
                 </div>
@@ -1384,7 +1433,7 @@ function Home() {
                     className="w-full rounded-lg border px-2 py-2 text-sm" style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)", borderColor: "var(--border-color)" }}>
                     <option value="">Any</option>
                     {["brass", "bronze", "chrome", "stainless", "nickel", "black", "gold", "aluminum"].map((k) => (
-                      <option key={k} value={k} disabled={uusSel.finish !== k && !(uusAvailable.finish?.has(k) ?? true)}>{k[0].toUpperCase() + k.slice(1)}{uusSel.finish !== k && !(uusAvailable.finish?.has(k) ?? true) ? " — n/a" : ""}</option>
+                      <option key={k} value={k} disabled={uusSel.finish !== k && uusValueUnavailable("finish", k)}>{k[0].toUpperCase() + k.slice(1)}{uusSel.finish !== k && uusValueUnavailable("finish", k) ? " — n/a" : ""}</option>
                     ))}
                   </select>
                 </div>
@@ -1394,7 +1443,7 @@ function Home() {
                     className="w-full rounded-lg border px-2 py-2 text-sm" style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)", borderColor: "var(--border-color)" }}>
                     <option value="">Any</option>
                     {["conventional", "sf-ic", "lf-ic", "keyed-removable", "electronic"].map((k) => (
-                      <option key={k} value={k} disabled={uusSel.cylinder !== k && !(uusAvailable.cylinder?.has(k) ?? true)}>{UUS_CYLINDER_TYPES[k]}{uusSel.cylinder !== k && !(uusAvailable.cylinder?.has(k) ?? true) ? " — n/a" : ""}</option>
+                      <option key={k} value={k} disabled={uusSel.cylinder !== k && uusValueUnavailable("cylinder", k)}>{UUS_CYLINDER_TYPES[k]}{uusSel.cylinder !== k && uusValueUnavailable("cylinder", k) ? " — n/a" : ""}</option>
                     ))}
                   </select>
                 </div>
@@ -1421,8 +1470,26 @@ function Home() {
                             setUusMissing(validation.missing);
                             return; // HARD BLOCK — do not populate the builder with an invalid mapping
                           }
-                          pushToasts(validation.corrections);
-                          const mapping = mapUusSelection(cand.product, validation.corrections.length > 0 ? { ...uusSel, ...validation.corrections.reduce((acc, c) => ({ ...acc, [c.field]: c.to }), {}) } : uusSel);
+                          // Phase C: brand/series switch runs the full Validation Loop (owner spec) —
+                          // EXTRACT with the candidate's brand → EVALUATE → EXECUTE corrections → hard block.
+                          const pickSel: UusBuildSelection = validation.corrections.length > 0
+                            ? { ...uusSel, ...validation.corrections.reduce((acc, c) => ({ ...acc, [c.field]: c.to }), {}) }
+                            : uusSel;
+                          const pickState = extractConstraintState(pickSel, cand.manufacturerId);
+                          const loop = evaluateState(pickState, constraintTable);
+                          const loopCorrections: AutoCorrection[] = loop.corrections.map((c) => ({ field: c.field, from: c.from, to: c.to, message: c.message }));
+                          for (const c of loop.corrections) {
+                            if ((UUS_FIELDS as readonly string[]).includes(c.field)) {
+                              pickSel[c.field] = c.to || undefined;
+                            }
+                          }
+                          setUusSel(pickSel);
+                          pushToasts([...validation.corrections, ...loopCorrections]);
+                          if (loop.blocked) {
+                            setConstraintBlocked(loop.messages.join(" ") || "Those options can't be combined on this series.");
+                            return; // HARD BLOCK — do not populate the builder
+                          }
+                          const mapping = mapUusSelection(cand.product, pickSel);
                           setUusMissing(mapping.missing);
                           setSelection({
                             manufacturerId: cand.manufacturerId,

@@ -1,0 +1,46 @@
+{
+  "_meta": {
+    "testOnly": true,
+    "purpose": "DEV-ONLY test rows for the Phase C engine (toasts/interlocking/hard-block browser walk-through). Loaded ONLY when the site URL has ?uusTest=1 — NEVER merged into the shipped constraint-table.json. NOT a production Constraint_Table. Rows here are intentionally synthetic: they fire on real UUS selections to demonstrate the correction loop; they are NOT data-proven restrictions and must never be shipped as active rows.",
+    "howToLoad": "Open the published site with ?uusTest=1 in the URL, e.g. https://<site>/?uusTest=1 — the Home() loader merges these rows into the in-memory table.",
+    "lastUpdated": "2026-08-11"
+  },
+  "rows": [
+    {
+      "id": "devtest-01-upgrade-grade",
+      "brand": null,
+      "uus_attribute_a": { "category": "cylindrical", "field": "function", "value": "storeroom" },
+      "condition": "CANNOT_COMBINE_WITH",
+      "uus_attribute_b": { "category": "cylindrical", "field": "grade", "value": "2" },
+      "resolution_action": "UPGRADE_VALUE",
+      "resolution_target": { "field": "grade", "value": "1" },
+      "user_message": "[TEST] Storeroom on a Grade 2 cylindrical lock — upgraded to Grade 1 (heavy duty) to keep your function.",
+      "active": true,
+      "notes": "DEV-ONLY. Demos UPGRADE_VALUE + toast: pick Grade 2 + Storeroom in the UUS build and the loop upgrades grade to 1. Synthetic — grade 2 + storeroom cylindrical DOES exist in the catalog (8 products); the row is a UI demo only."
+    },
+    {
+      "id": "devtest-02-remove-function",
+      "brand": null,
+      "uus_attribute_a": { "category": "door-closer", "field": "category", "value": "door-closer" },
+      "condition": "CANNOT_COMBINE_WITH",
+      "uus_attribute_b": { "category": "door-closer", "field": "function", "value": "storeroom" },
+      "resolution_action": "REMOVE",
+      "resolution_target": null,
+      "user_message": "[TEST] Door closers don't have a storeroom function — cleared the function for you.",
+      "active": true,
+      "notes": "DEV-ONLY. Demos REMOVE: pick Category=Door Closer + Function=Storeroom → function cleared. Data-provable (0 door-closer products derive storeroom) but kept test-only so the shipped table stays all-inactive."
+    },
+    {
+      "id": "devtest-03-hard-block",
+      "brand": "arrow",
+      "uus_attribute_a": { "category": "cylindrical", "field": "function", "value": "classroom-security" },
+      "condition": "CANNOT_COMBINE_WITH",
+      "uus_attribute_b": { "category": "cylindrical", "field": "category", "value": "cylindrical" },
+      "resolution_action": "CHANGE_VALUE",
+      "resolution_target": null,
+      "user_message": "[TEST] Hard block: no resolution action available for this combination.",
+      "active": true,
+      "notes": "DEV-ONLY. Demos blocked:true (CHANGE_VALUE without resolution_target → unresolvable): pick Arrow + Classroom Security + Cylindrical → red banner + part-number generation prevented. Synthetic."
+    }
+  ]
+}

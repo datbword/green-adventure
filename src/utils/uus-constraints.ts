@@ -1,41 +1,60 @@
 /**
- * UUS Phase C — Cross-Brand Validation Loop (2026-08-11).
+ * UUS Phase C — Cross-Brand Validation Loop (2026-08-11, owner spec rev).
  *
- * Owner architecture: Extract State → Evaluate Constraints → Execute Correction.
+ * Owner architecture: EXTRACT → EVALUATE → EXECUTE, bounded correction loop.
  *
- *   1. ExtractState        — current UUS build selections (+ optional brand) → ConstraintState
- *   2. EvaluateConstraints — ACTIVE rows of the centralized Constraint_Table (constraint-table.json)
- *                            fire when both uus_attribute_a and uus_attribute_b are present in state;
- *                            PLUS data-derived interlocking (a value is unavailable when zero products
- *                            support it given the other selections) and mapping validation.
- *   3. ExecuteCorrection   — apply resolution_action/resolution_target (auto-correct the selection,
- *                            prioritizing the user's goal — e.g. upgrade grade to keep an option),
- *                            surface toast messages, and HARD-BLOCK invalid part-number generation.
+ *   evaluateState(state, constraints) → { correctedState, corrections, blocked, messages }
  *
- * Honesty rule (owner, 2026-08-11): the Constraint_Table seeds the owner's 6 mock rows ALL
- * active:false + data-reality notes. Live enforcement is derived ONLY from the product data files —
- * no fabricated constraints. All availability/correction logic below reads the real data.
+ *   1. EXTRACT  — the current build selection mapped to UUS attribute values
+ *                 (category/grade/function/style/finish/cylinder + product option fields).
+ *   2. EVALUATE — for each ACTIVE row of the centralized Constraint_Table
+ *                 (constraint-table.json), the conflict fires when BOTH
+ *                 uus_attribute_a and uus_attribute_b are present in state.
+ *   3. EXECUTE  — apply resolution_action:
+ *                   CHANGE_VALUE / UPGRADE_VALUE / FORCE_CHANGE: set resolution_target field/value
+ *                   REMOVE: clear attribute_b's option
+ *                 Each correction surfaces row.user_message. A fired conflict with no actionable
+ *                 resolution → blocked:true (part-number generation is prevented).
+ *   Loop until stable — corrections can trigger NEW conflicts (bounded at 5 iterations; then block).
+ *
+ * Honesty rule (owner, 2026-08-11): the shipped Constraint_Table seeds the owner's 6 mock rows ALL
+ * active:false + data-reality notes. Live enforcement derives ONLY from (a) product data files and
+ * (b) rows the owner has confirmed. NO fabricated constraints. All availability/correction logic
+ * below reads the real data files.
+ *
+ * Canonical UUS source: all attributes consumed via src/utils/uus.ts API (deriveUus / uusFileEntry /
+ * translateDecoded) — NOT by reading uus-attributes.json directly in new code paths.
  */
 import { deriveUus, categoryFormMatches, type UusAttributes } from "~/utils/uus";
 import { findUusCandidates, styleMatches, mapUusSelection, type UusBuildSelection, type UusCandidate } from "~/utils/uus-build";
-import type { ManufacturerData } from "~/types";
+import type { ManufacturerData, ProductSeries, SeriesOption } from "~/types";
 
 // ─────────────────────────────── Constraint_Table schema (owner) ───────────────────────────────
 
 export type ConstraintCondition = "CANNOT_COMBINE_WITH";
-export type ResolutionAction = "CLEAR_ATTRIBUTE_A" | "CLEAR_ATTRIBUTE_B" | "CHANGE_ATTRIBUTE_A" | "CHANGE_ATTRIBUTE_B" | "HARD_BLOCK";
+export type ResolutionAction = "CHANGE_VALUE" | "UPGRADE_VALUE" | "REMOVE" | "FORCE_CHANGE";
+
+/** One side of a constraint: {category, field, value}. `category` is the product category scope
+ *  the constraint lives in (e.g. "Cylindrical", "Surface_Closer"); `field` is the attribute field
+ *  (UUS field like grade/function/finish/cylinder/category, OR a product option field like
+ *  cover/option/keyway/arm/mounting_style); `value` is the participating value. */
+export interface ConstraintAttrRef {
+  category?: string;
+  field: string;
+  value: string;
+}
 
 export interface ConstraintRow {
   id: string;
-  brand?: string | null;        // manufacturer file id (e.g. "schlage"); null/undefined = any brand
-  uus_attribute_a: string;      // "field:value" e.g. "grade:1"
+  brand?: string | null; // manufacturer file id (e.g. "schlage"); null/undefined = any brand
+  uus_attribute_a: ConstraintAttrRef;
   condition: ConstraintCondition;
-  uus_attribute_b: string;      // "field:value" e.g. "function:storeroom"
+  uus_attribute_b: ConstraintAttrRef;
   resolution_action: ResolutionAction;
-  resolution_target?: string | null; // "field:value" for CHANGE_* actions
+  resolution_target?: { field: string; value: string } | null; // required for CHANGE_VALUE/UPGRADE_VALUE/FORCE_CHANGE
   user_message: string;
   active: boolean;
-  note?: string;
+  notes?: string;
 }
 
 export interface ConstraintTable {
@@ -46,60 +65,194 @@ export interface ConstraintTable {
 export const UUS_FIELDS = ["category", "grade", "function", "style", "finish", "cylinder"] as const;
 export type UusField = (typeof UUS_FIELDS)[number];
 
+/** The evaluated state: brand + UUS attribute values + selected product option fields. */
 export interface ConstraintState {
-  brand?: string;               // manufacturer id
-  category?: string;
-  grade?: string;
-  function?: string;
-  style?: string;
-  finish?: string;
-  cylinder?: string;
+  brand?: string;
+  attributes: Record<string, string>; // field → value (UUS ids + product option codes)
 }
 
 // ─────────────────────────────── 1. Extract State ───────────────────────────────
 
-export function extractConstraintState(uusSel: UusBuildSelection, brand?: string | null): ConstraintState {
-  return {
-    brand: brand ?? undefined,
-    category: uusSel.category,
-    grade: uusSel.grade,
-    function: uusSel.function,
-    style: uusSel.style,
-    finish: uusSel.finish,
-    cylinder: uusSel.cylinder,
-  };
+const norm = (s: string): string => (s ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "").trim();
+
+/**
+ * Extract the constraint state from the current UUS build selection (+ brand + product options).
+ * UUS fields are included under their own names; product option fields (cover, keyway, arm, …)
+ * are included as selected codes so option-level constraint rows can match.
+ */
+export function extractConstraintState(
+  uusSel: UusBuildSelection,
+  brand?: string | null,
+  options: Record<string, SeriesOption | null> = {},
+): ConstraintState {
+  const attributes: Record<string, string> = {};
+  for (const f of UUS_FIELDS) {
+    const v = uusSel[f];
+    if (v) attributes[f] = v;
+  }
+  for (const [field, opt] of Object.entries(options)) {
+    if (opt) attributes[field] = opt.code ?? opt.name ?? "";
+  }
+  return { brand: brand ?? undefined, attributes };
 }
 
-function parseAttr(ref: string): { field: string; value: string } {
-  const i = ref.indexOf(":");
-  if (i <= 0) return { field: ref, value: "" };
-  return { field: ref.slice(0, i), value: ref.slice(i + 1) };
+/** Is an attribute ref present in the state? (category scope matches AND field value matches) */
+export function attrPresent(state: ConstraintState, ref: ConstraintAttrRef): boolean {
+  if (ref.category) {
+    const cat = state.attributes["category"];
+    if (!cat || norm(cat) !== norm(ref.category)) return false;
+  }
+  const v = state.attributes[ref.field];
+  return v !== undefined && v !== "" && norm(v) === norm(ref.value);
 }
 
-// ─────────────────────────────── 2. Evaluate Constraints ───────────────────────────────
+/** Which active rows fire against the state? (EVALUATE step, shared by evaluateState/evaluateConstraints) */
+export function firedRows(state: ConstraintState, table: ConstraintTable | null): ConstraintRow[] {
+  if (!table?.rows) return [];
+  const out: ConstraintRow[] = [];
+  for (const row of table.rows) {
+    if (!row.active) continue;
+    if (row.brand && state.brand && norm(row.brand) !== norm(state.brand)) continue;
+    if (attrPresent(state, row.uus_attribute_a) && attrPresent(state, row.uus_attribute_b)) {
+      out.push(row);
+    }
+  }
+  return out;
+}
 
 export interface ConstraintViolation {
   row: ConstraintRow;
   message: string;
-  blocked: boolean; // true when resolution_action is HARD_BLOCK (or no correction possible)
+  blocked: boolean;
 }
 
-/** Evaluate ACTIVE table rows against the current state. */
+/** EVALUATE only — returns fired rows (used by the UI memo / tests). */
 export function evaluateConstraints(state: ConstraintState, table: ConstraintTable | null): ConstraintViolation[] {
-  if (!table) return [];
-  const out: ConstraintViolation[] = [];
-  for (const row of table.rows ?? []) {
-    if (!row.active) continue;
-    if (row.brand && state.brand && row.brand !== state.brand) continue;
-    const a = parseAttr(row.uus_attribute_a);
-    const b = parseAttr(row.uus_attribute_b);
-    const aVal = (state as Record<string, string | undefined>)[a.field];
-    const bVal = (state as Record<string, string | undefined>)[b.field];
-    if (aVal !== undefined && bVal !== undefined && aVal === a.value && bVal === b.value) {
-      out.push({ row, message: row.user_message || `"${a.value}" can't combine with "${b.value}"`, blocked: row.resolution_action === "HARD_BLOCK" });
+  return firedRows(state, table).map((row) => ({
+    row,
+    message: row.user_message || `"${row.uus_attribute_a.value}" can't combine with "${row.uus_attribute_b.value}"`,
+    blocked: false, // resolution is evaluated separately (evaluateState); this is the raw EVALUATE step
+  }));
+}
+
+// ─────────────────────────────── 3. Execute Correction ───────────────────────────────
+
+export interface ConstraintCorrection {
+  field: string;
+  from: string;
+  to: string;
+  message: string;
+  forced?: boolean;  // FORCE_CHANGE recorded
+  upgraded?: boolean; // UPGRADE_VALUE recorded (owner priority marker)
+}
+
+export interface EvaluateResult {
+  correctedState: ConstraintState;
+  corrections: ConstraintCorrection[];
+  blocked: boolean;
+  messages: string[];
+}
+
+const MAX_ITERATIONS = 5;
+
+/** Apply ONE resolution to the state; returns {changed, state, correction} or {blocked, message}. */
+function applyResolution(
+  state: ConstraintState,
+  row: ConstraintRow,
+): { changed: boolean; state?: ConstraintState; correction?: ConstraintCorrection; blocked?: boolean; message?: string } {
+  const a = row.uus_attribute_a;
+  const b = row.uus_attribute_b;
+  switch (row.resolution_action) {
+    case "CHANGE_VALUE":
+    case "UPGRADE_VALUE":
+    case "FORCE_CHANGE": {
+      const target = row.resolution_target;
+      if (!target || !target.field) {
+        return { changed: false, blocked: true, message: row.user_message || "No resolution target for this conflict." };
+      }
+      const from = state.attributes[target.field] ?? "";
+      const correctedState: ConstraintState = { ...state, attributes: { ...state.attributes, [target.field]: target.value } };
+      return {
+        changed: norm(from) !== norm(target.value),
+        state: correctedState,
+        correction: {
+          field: target.field,
+          from,
+          to: target.value,
+          message: row.user_message || `"${from}" isn't available — using "${target.value}" instead.`,
+          forced: row.resolution_action === "FORCE_CHANGE",
+          upgraded: row.resolution_action === "UPGRADE_VALUE",
+        },
+      };
+    }
+    case "REMOVE": {
+      const from = state.attributes[b.field];
+      if (from === undefined) {
+        // attribute_b's option isn't actually present — nothing actionable
+        return { changed: false, blocked: true, message: row.user_message || "Cannot resolve: option already absent." };
+      }
+      const correctedState: ConstraintState = { ...state, attributes: { ...state.attributes } };
+      delete correctedState.attributes[b.field];
+      return {
+        changed: true,
+        state: correctedState,
+        correction: { field: b.field, from, to: "", message: row.user_message || `Removed "${b.value}".` },
+      };
+    }
+    default:
+      return { changed: false, blocked: true, message: row.user_message || "Unknown resolution action." };
+  }
+}
+
+/**
+ * The owner-specified validation loop.
+ * EXTRACT (state) → EVALUATE (firedRows) → EXECUTE (applyResolution), looping until stable.
+ * Corrections can trigger new conflicts — bounded at MAX_ITERATIONS; if conflicts remain after the
+ * bound, blocked:true with a "could not resolve" message. Any fired conflict with no actionable
+ * resolution → blocked:true immediately (part-number generation prevented).
+ */
+export function evaluateState(state: ConstraintState, table: ConstraintTable | null): EvaluateResult {
+  if (!table?.rows || table.rows.length === 0) {
+    return { correctedState: state, corrections: [], blocked: false, messages: [] };
+  }
+  let current: ConstraintState = { ...state, attributes: { ...state.attributes } };
+  const corrections: ConstraintCorrection[] = [];
+  const messages: string[] = [];
+  let blocked = false;
+
+  for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
+    const conflicts = firedRows(current, table);
+    if (conflicts.length === 0) break;
+    let progressed = false;
+    for (const row of conflicts) {
+      const res = applyResolution(current, row);
+      if (res.blocked) {
+        blocked = true;
+        messages.push(res.message ?? row.user_message);
+        continue;
+      }
+      if (res.changed && res.state && res.correction) {
+        current = res.state;
+        corrections.push(res.correction);
+        messages.push(res.correction.message);
+        progressed = true;
+      }
+    }
+    if (blocked) break;
+    if (!progressed) {
+      // conflicts remain but no resolution made progress → unresolvable
+      blocked = true;
+      messages.push("Could not resolve the conflicting options automatically — try changing your selection.");
+      break;
     }
   }
-  return out;
+
+  if (!blocked && firedRows(current, table).length > 0) {
+    blocked = true;
+    messages.push("Could not resolve all conflicts within the correction loop limit — try changing your selection.");
+  }
+
+  return { correctedState: current, corrections, blocked, messages };
 }
 
 // ─────────────────────────────── Interlocking availability (data-derived) ───────────────────────────────
@@ -125,10 +278,6 @@ export function countFullMatches(manufacturerFiles: Record<string, ManufacturerD
   return n;
 }
 
-const FIELD_VALUE_KEYS: Record<UusField, string> = {
-  category: "category", grade: "grade", function: "function", style: "style", finish: "finish", cylinder: "cylinder",
-};
-
 /**
  * Interlocking: for a given field, which values remain AVAILABLE given the current other selections?
  * A value is available iff ≥1 product in the catalog fully matches all other fields PLUS that value.
@@ -142,18 +291,35 @@ export function getAvailableValues(
 ): Set<string> {
   const available = new Set<string>();
   for (const v of domain) {
-    const trial: UusBuildSelection = { ...uusSel, [field]: v };
-    // drop same-field value from the trial base so "other selections" is the base
     const base = { ...uusSel };
     delete (base as Record<string, string | undefined>)[field];
     const trialSel = { ...base, [field]: v };
     if (countFullMatches(manufacturerFiles, trialSel) > 0) available.add(v);
-    void trial;
   }
   return available;
 }
 
-// ─────────────────────────────── 3. Execute Correction ───────────────────────────────
+/**
+ * Interlocking by ACTIVE constraint rows: which candidate values of `field` would trigger a
+ * correction or a block if selected? Those must be grayed out too. With 0 active rows this is empty.
+ */
+export function getConstraintForbiddenValues(
+  table: ConstraintTable | null,
+  state: ConstraintState,
+  field: string,
+  domain: string[],
+): Set<string> {
+  const forbidden = new Set<string>();
+  if (!table?.rows?.some((r) => r.active)) return forbidden;
+  for (const v of domain) {
+    const trial: ConstraintState = { ...state, attributes: { ...state.attributes, [field]: v } };
+    const res = evaluateState(trial, table);
+    if (res.blocked || res.corrections.length > 0) forbidden.add(v);
+  }
+  return forbidden;
+}
+
+// ─────────────────────────────── Auto-correction (data-derived, preserves user goal) ───────────────────────────────
 
 export interface AutoCorrection {
   field: string;
@@ -174,7 +340,6 @@ const GRADE_ORDER = ["1", "2", "3", "residential"];
 const FINISH_ORDER = ["chrome", "brass", "bronze", "stainless", "nickel", "black", "gold", "aluminum"];
 const CYLINDER_ORDER = ["conventional", "sf-ic", "lf-ic", "keyed-removable", "electronic"];
 const STYLE_ORDER = ["straight", "curved", "flat", "ornate", "knob"];
-const FUNCTION_ORDER = ["passage", "privacy", "entrance", "office", "storeroom", "classroom", "classroom-security", "communicating", "dummy", "deadbolt", "panic-exit", "closer", "operator", "electronic"];
 
 function fieldDomain(field: UusField): string[] {
   switch (field) {
@@ -182,7 +347,6 @@ function fieldDomain(field: UusField): string[] {
     case "finish": return FINISH_ORDER;
     case "cylinder": return CYLINDER_ORDER;
     case "style": return STYLE_ORDER;
-    case "function": return FUNCTION_ORDER;
     default: return [];
   }
 }
@@ -190,9 +354,9 @@ function fieldDomain(field: UusField): string[] {
 /**
  * Auto-correct a selection change. When the user picks a value that makes the full combination
  * impossible (0 matching products), try changing ONE other field (priority: grade → finish → cylinder
- * → style → function) to a value that restores ≥1 match — prioritizing the user's goal (the option
- * they just picked stays fixed; e.g. "upgrade grade to keep Storeroom"). If nothing restores a match,
- * the selection is HARD-BLOCKED (no part number can be generated).
+ * → style) to a value that restores ≥1 match — prioritizing the user's goal (the option they just
+ * picked stays fixed; e.g. "upgrade grade to keep Storeroom"). If nothing restores a match, the
+ * selection is HARD-BLOCKED (no part number can be generated).
  */
 export function autoCorrectSelection(
   manufacturerFiles: Record<string, ManufacturerData>,
@@ -202,7 +366,6 @@ export function autoCorrectSelection(
   if (countFullMatches(manufacturerFiles, uusSel) > 0) {
     return { selection: uusSel, corrections: [], blocked: false };
   }
-  // Try correcting the OTHER fields (never the just-changed one first — that's the user's goal).
   const otherFields: UusField[] = ["grade", "finish", "cylinder", "style", "function"].filter((f) => f !== changedField && f !== "category") as UusField[];
   for (const field of otherFields) {
     const current = (uusSel as Record<string, string | undefined>)[field];
@@ -225,7 +388,6 @@ export function autoCorrectSelection(
       }
     }
   }
-  // No single-field correction works → hard block.
   const selected = Object.entries(uusSel).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join(", ");
   return {
     selection: uusSel,
@@ -246,7 +408,7 @@ export interface MappingValidation {
 }
 
 /** Selections the product's RUNTIME-derived UUS attributes don't include (data-provable mismatch). */
-function derivedMissingFor(product: ManufacturerData["products"][number], sel: UusBuildSelection): { field: string; label: string }[] {
+function derivedMissingFor(product: ProductSeries, sel: UusBuildSelection): { field: string; label: string }[] {
   const a = deriveUus(product);
   const out: { field: string; label: string }[] = [];
   if (sel.function && !a.functions.some((f) => f.id === sel.function)) {
@@ -278,7 +440,6 @@ export function validateUusMapping(
   if (missing.length === 0) {
     return { ok: true, corrections: [], blocked: false, missing: [] };
   }
-  // Try auto-correcting each missing field to the closest available value on THIS product.
   const corrected: UusBuildSelection = { ...uusSel };
   const corrections: AutoCorrection[] = [];
   const stillMissing: { field: string; label: string }[] = [];
@@ -324,3 +485,6 @@ export function validateUusMapping(
   }
   return { ok: true, corrections, blocked: false, missing: [] };
 }
+
+// keep findUusCandidates re-exported for callers that want both layers
+export { findUusCandidates };
