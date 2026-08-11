@@ -1,9 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { useVisualMode } from "~/hooks/useVisualMode";
+
 import { useAuth } from "~/hooks/useAuth";
 import { listJobs, createJob, deleteJob, removePartFromJob } from "~/utils/jobs";
-import { queueEmail } from "~/routes/api/email";
+import { queueEmail } from "~/routes/api/-email";
 import { AuthModal } from "~/components/AuthModal";
 import type { Job, SavedPart } from "~/utils/jobs";
 
@@ -11,11 +11,9 @@ export const Route = createFileRoute("/jobs")({
   component: JobsPage,
 });
 
-const MODE_ICONS: Record<string, string> = { normal: "☀️", dark: "🌙", "high-contrast": "🔲", calm: "🌀" };
-const MODE_LABELS: Record<string, string> = { normal: "Light mode", dark: "Dark mode", "high-contrast": "High contrast", calm: "Calm mode" };
 
 function JobsPage() {
-  const { mode, cycleMode } = useVisualMode();
+
   const { user, showAuth, setShowAuth, saveSession, clearSession } = useAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
@@ -127,7 +125,7 @@ function JobsPage() {
       <header className="mb-6 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-3 no-underline">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg text-lg font-bold text-white shadow-sm"
-            style={{ backgroundColor: mode === "high-contrast" ? "#000" : mode === "calm" ? "#6B6B6B" : "#1B2A4A" }}>
+            style={{ backgroundColor: mode === "high-contrast" ? "#000000" : mode === "dark" ? "#1F1F1F" : mode === "calm" ? "#6B6B6B" : "#1B2A4A" }}>
             LB
           </div>
           <div>
@@ -139,9 +137,6 @@ function JobsPage() {
           <button onClick={() => setShowCreate(true)}
             className="mode-toggle-btn font-bold" title="Create new job" aria-label="Create new job">
             <span className="text-lg">+</span>
-          </button>
-          <button className="mode-toggle-btn" onClick={cycleMode} title={MODE_LABELS[mode]}>
-            <span className="text-base">{MODE_ICONS[mode]}</span>
           </button>
         </div>
       </header>

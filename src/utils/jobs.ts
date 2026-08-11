@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
-import { readFileSync, writeFileSync, existsSync, mkdirSync, randomBytes } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
+import { randomBytes } from "node:crypto";
 import { join } from "node:path";
 
 // ── Data Types ──

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { lazy, Suspense, useState, useMemo, useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { readFile, readdir } from "node:fs/promises";
@@ -7,18 +7,24 @@ import { AuthModal } from "~/components/AuthModal";
 import { UserMenu } from "~/components/UserMenu";
 import { SaveToJobModal } from "~/components/SaveToJobModal";
 import { SettingsPanel } from "~/components/SettingsPanel";
+const SecurityAudit = lazy(() => import("~/components/SecurityAudit").then(module => ({ default: module.SecurityAudit })));
 import { ContactModal, type ContactInfo } from "~/components/ContactModal";
 import { buildPartNumber, buildPartialPartNumber, findCrossReferences, isComplete, getActiveFields, getFieldCounts, getFieldLabel, getFieldPlaceholder } from "~/utils/part-builder";
 import { decodePartNumber, tryPartialDecode, generateSuggestions, type DecodeResult, type Suggestion } from "~/utils/part-decoder";
+import { translateDecoded } from "~/utils/uus";
 import type { ConversionResult } from "~/utils/option-converter";
 import { useVisualMode } from "~/hooks/useVisualMode";
-import { useSettings } from "~/hooks/useSettings";
 import { useAuth } from "~/hooks/useAuth";
 import { I18nProvider, useI18n } from "~/i18n/context";
-import type { ManufacturerData, ManufacturerOption, ProductSeries, SeriesOption, Selection, DataCache, CrossRefFamily } from "~/types";
+import type { ManufacturerData, ManufacturerOption, ProductSeries, SeriesOption, Selection, DataCache, CrossRefFamily, KeyBlank } from "~/types";
 import { CrossReferences } from "~/components/CrossReferences";
-import { buildSearchIndex, searchProducts, getFilterOptions, type SearchFilters, type SearchResult } from "~/utils/product-search";
+import { buildSearchIndex, searchProducts, laymanSearch, getFilterOptions, type SearchFilters, type SearchResult } from "~/utils/product-search";
+import { UUS_CATEGORIES, UUS_GRADES, UUS_FUNCTIONS, UUS_DESIGN_STYLES, UUS_CYLINDER_TYPES, type UusSynonymsFile } from "~/utils/uus";
+import { findUusCandidates, mapUusSelection, type UusBuildSelection } from "~/utils/uus-build";
+import { autoCorrectSelection, getAvailableValues, validateUusMapping, evaluateConstraints, extractConstraintState, UUS_FIELDS, type ConstraintTable, type AutoCorrection } from "~/utils/uus-constraints";
 import type { SavedPart } from "~/utils/jobs";
+import { LOCK_FUNCTIONS } from "~/utils/lock-functions";
+import { HANDING_TYPES } from "~/utils/door-handing";
 
 // ── Server Data Loading ──
 
@@ -34,7 +40,8 @@ const loadAllData = createServerFn({ method: "GET" }).handler(async (): Promise<
   const nonManufacturerFiles = new Set([
     "finishes.json", "functions.json", "keyways.json",
     "handings.json", "backsets.json", "cross-references.json",
-    "manufacturers.json", "part-formats.json",
+    "manufacturers.json", "part-formats.json", "key-blanks.json", "ilco-directory.json",
+    "uus-attributes.json", "uus-dictionary.json", "uus-synonyms.json", "constraint-table.json",
   ]);
   // Load all JSON files that aren't non-manufacturer files
   // Each manufacturer file contains a ManufacturerData object with a `manufacturer` field
@@ -60,7 +67,17 @@ const loadAllData = createServerFn({ method: "GET" }).handler(async (): Promise<
     }
   }
 
-  return { manufacturers, manufacturerFiles, crossReferences };
+  // Phase C: centralized Constraint_Table (owner schema; live rows only where data-provable)
+  let constraintTable: unknown = null;
+  if (allFiles.includes("constraint-table.json")) {
+    try {
+      constraintTable = await loadJson<unknown>(`${base}/constraint-table.json`);
+    } catch {
+      constraintTable = null;
+    }
+  }
+
+  return { manufacturers, manufacturerFiles, crossReferences, constraintTable };
 });
 
 export const Route = createFileRoute("/")({
@@ -74,19 +91,61 @@ export const Route = createFileRoute("/")({
 
 // ── Visual Mode ──
 
+// ── Client-side data loaders ──
+// NOTE: These MUST be defined inside Home() to prevent Vite code-splitting
+// them into separate chunks that never load on tab switch.
+
 function Home() {
   const data = Route.useLoaderData();
   const { mode, setMode } = useVisualMode();
-  const { theme, setTheme } = useSettings();
   const { t, lang, setLang } = useI18n();
   const { user, showAuth, setShowAuth, saveSession, clearSession } = useAuth();
   const [saveJobPart, setSaveJobPart] = useState<SavedPart | null>(null);
   const [saveToast, setSaveToast] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
+  const [buildNotes, setBuildNotes] = useState("");
+  const [showResourcesBanner, setShowResourcesBanner] = useState(true);
+  // Decode mode state (declared before tab-specific effects)
+  const [tabMode, setTabMode] = useState<"build" | "decode" | "find" | "resources" | "audit">("build");
+
+  // Key Blanks data (fetched client-side)
+  const [keyBlanksData, setKeyBlanksData] = useState<KeyBlank[] | null>(null);
+  const [keyBlanksFilter, setKeyBlanksFilter] = useState("");
+  useEffect(() => {
+    if (tabMode !== "resources" || keyBlanksData !== null) return;
+    fetch("/data/key-blanks.json").then(r => r.json()).then(d => setKeyBlanksData(d.blanks)).catch(() => {});
+  }, [tabMode, keyBlanksData]);
+  // Load decoded result into the Build tab
+  function openInBuilder(result: DecodeResult) {
+    const mfrFile = data.manufacturerFiles[result.manufacturerId];
+    if (!mfrFile) return;
+    const series = mfrFile.products.find((p) => p.series === result.series);
+    if (!series) return;
+
+    // Map decoded tokens to selection options
+    const opts: Record<string, SeriesOption | null> = {};
+    for (const token of result.tokens) {
+      const fieldOptions = series.options?.[token.field];
+      if (fieldOptions) {
+        const matched = fieldOptions.find((o) => o.code === token.code);
+        if (matched) opts[token.field] = matched;
+      }
+    }
+
+    setSelection({
+      manufacturerId: result.manufacturerId,
+      manufacturerName: result.manufacturerName,
+      series,
+      pins: null,
+      options: opts,
+    });
+    setTabMode("build");
+    // Scroll to top for mobile users
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   // Decode mode state
-  const [tabMode, setTabMode] = useState<"build" | "decode" | "find">("build");
   const [decodeInput, setDecodeInput] = useState("");
   const [decodeResult, setDecodeResult] = useState<DecodeResult | null>(null);
   const [decodeAllResults, setDecodeAllResults] = useState<DecodeResult[]>([]);
@@ -100,6 +159,12 @@ function Home() {
   const [findCategory, setFindCategory] = useState<string>("");
   const [findGrade, setFindGrade] = useState<string>("");
   const [findCommercial, setFindCommercial] = useState<boolean | undefined>(undefined);
+  // Phase B refined: layman search (plain-English) via uus-synonyms.json
+  const [synonymsData, setSynonymsData] = useState<UusSynonymsFile | null>(null);
+  const [laymanForce, setLaymanForce] = useState(false);
+  useEffect(() => {
+    fetch("/data/uus-synonyms.json").then(r => r.json()).then(d => setSynonymsData(d as UusSynonymsFile)).catch(() => {});
+  }, []);
 
   const defaultSelection: Selection = {
     manufacturerId: null,
@@ -110,7 +175,57 @@ function Home() {
   };
 
   const [selection, setSelection] = useState<Selection>({ ...defaultSelection });
+  // Phase B refined: UUS Simple build
+  const [buildModeSimple, setBuildModeSimple] = useState(false);
+  const [uusSel, setUusSel] = useState<UusBuildSelection>({});
+  const [uusMissing, setUusMissing] = useState<{ field: string; label: string }[]>([]);
   const [conversionResult, setConversionResult] = useState<ConversionResult | null>(null);
+  // Phase C: Cross-Brand Validation Loop — toasts + hard-block banner
+  const [constraintToasts, setConstraintToasts] = useState<AutoCorrection[]>([]);
+  const [constraintBlocked, setConstraintBlocked] = useState<string | null>(null);
+  const pushToasts = (cs: AutoCorrection[]) => {
+    if (cs.length === 0) return;
+    setConstraintToasts((prev) => [...prev, ...cs]);
+    setTimeout(() => setConstraintToasts((prev) => prev.filter((c) => !cs.includes(c))), 6000);
+  };
+
+  const constraintTable = (data as DataCache).constraintTable as ConstraintTable | null;
+
+  // Phase C interlocking: for each UUS field, which values remain possible given the other selections?
+  const uusFieldDomain: Record<string, string[]> = {
+    category: Object.keys(UUS_CATEGORIES).filter((k) => !["other", "key-blank", "key-machine", "software"].includes(k)),
+    grade: Object.keys(UUS_GRADES),
+    function: ["passage", "privacy", "entrance", "office", "storeroom", "classroom", "classroom-security", "communicating", "dummy", "deadbolt"],
+    style: ["straight", "curved", "flat", "ornate", "knob"],
+    finish: ["brass", "bronze", "chrome", "stainless", "nickel", "black", "gold", "aluminum"],
+    cylinder: ["conventional", "sf-ic", "lf-ic", "keyed-removable", "electronic"],
+  };
+  const uusAvailable = useMemo(() => {
+    const out: Record<string, Set<string>> = {};
+    for (const field of UUS_FIELDS) {
+      out[field] = getAvailableValues(data.manufacturerFiles, uusSel, field, uusFieldDomain[field] ?? []);
+    }
+    return out;
+  }, [data.manufacturerFiles, uusSel]);
+
+  // Phase C: active table-row evaluation against the current selection (all seed rows are inactive; engine ready)
+  const constraintViolations = useMemo(() => {
+    if (!selection.series) return [];
+    const state = extractConstraintState(uusSel, selection.manufacturerId);
+    return evaluateConstraints(state, constraintTable);
+  }, [uusSel, selection.series, selection.manufacturerId, constraintTable]);
+
+  /** UUS field change handler with the Validation Loop: auto-correct on conflict, toast, hard block. */
+  const setUusField = (field: keyof UusBuildSelection, value: string) => {
+    setConstraintBlocked(null);
+    const next: UusBuildSelection = { ...uusSel, [field]: value || undefined };
+    const result = autoCorrectSelection(data.manufacturerFiles, next, field as never);
+    setUusSel(result.selection);
+    pushToasts(result.corrections);
+    if (result.blocked) {
+      setConstraintBlocked(result.blockMessage ?? "That combination isn't available — try fewer attributes.");
+    }
+  };
 
   const updateSelection = (key: string, value: SeriesOption | string | null) => {
     // When manufacturer changes, preserve universal options and convert where possible
@@ -255,10 +370,18 @@ function Home() {
       }));
       return;
     }
-    setSelection((prev) => ({
-      ...prev,
-      options: { ...prev.options, [key]: value },
-    }));
+    // Pins is a top-level selection field, not an option
+    if (key === "pins") {
+      setSelection((prev) => ({
+        ...prev,
+        pins: value as unknown as number | null,
+      }));
+    } else {
+      setSelection((prev) => ({
+        ...prev,
+        options: { ...prev.options, [key]: value },
+      }));
+    }
   };
 
   const clearAll = () => {
@@ -381,8 +504,14 @@ function Home() {
   // Search index for Find tab
   const searchIndex = useMemo(() => buildSearchIndex(data.manufacturerFiles), [data.manufacturerFiles]);
   const filterOptions = useMemo(() => getFilterOptions(searchIndex), [searchIndex]);
+  const uusCandidates = useMemo(() => findUusCandidates(data.manufacturerFiles, uusSel), [data.manufacturerFiles, uusSel]);
 
+  // Auto-detect: queries with no digits and no filters active are treated as plain-English
+  // (layman) searches; the manual toggle forces either mode. Part-number/series queries stay on the direct path.
+  const partNumberLike = /[0-9]/.test(findQuery);
+  const useLayman = laymanForce || (findQuery.trim().length > 0 && !partNumberLike && !findCategory && !findGrade && findCommercial === undefined);
   const findResults = useMemo(() => {
+    if (useLayman) return laymanSearch(searchIndex, findQuery, synonymsData, 40);
     const filters: SearchFilters = {
       query: findQuery,
       category: findCategory || undefined,
@@ -390,7 +519,101 @@ function Home() {
       commercial: findCommercial,
     };
     return searchProducts(searchIndex, filters, 40);
-  }, [searchIndex, findQuery, findCategory, findGrade, findCommercial]);
+  }, [searchIndex, findQuery, findCategory, findGrade, findCommercial, useLayman, synonymsData]);
+
+  // Copy-to-clipboard button
+  function CopyButton({ text, label }: { text: string; label?: string }) {
+    const [copied, setCopied] = useState(false);
+    return (
+      <button
+        onClick={async () => {
+          try {
+            await navigator.clipboard.writeText(text);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          } catch {
+            // Fallback for older browsers
+            const ta = document.createElement("textarea");
+            ta.value = text;
+            ta.style.position = "fixed";
+            ta.style.opacity = "0";
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand("copy");
+            document.body.removeChild(ta);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          }
+        }}
+        className="rounded-md px-2 py-1 text-xs font-medium transition-colors"
+        style={{
+          backgroundColor: copied ? "var(--success)" : "color-mix(in srgb, var(--text-muted) 10%, transparent)",
+          color: copied ? "#fff" : "var(--text-muted)",
+          border: copied ? "1px solid var(--success)" : "1px solid color-mix(in srgb, var(--text-muted) 15%, transparent)",
+          cursor: "pointer",
+          minHeight: "28px",
+          whiteSpace: "nowrap",
+        }}
+        aria-label={`Copy ${label || text}`}
+      >
+        {copied ? "✓ Copied" : (label || "📋 Copy")}
+      </button>
+    );
+  }
+
+  // Lock function cheat-sheet popup
+  function FunctionHelp({ options }: { options: SeriesOption[] }) {
+    const [open, setOpen] = useState(false);
+    if (options.length <= 1) return null;
+    return (
+      <span style={{ position: "relative", display: "inline-block", marginLeft: "4px" }}>
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          aria-label="Function help"
+          title="What do these functions mean?"
+          style={{
+            width: "18px", height: "18px", borderRadius: "50%",
+            border: "1px solid var(--border-color)",
+            backgroundColor: "var(--bg-tertiary)", color: "var(--text-muted)",
+            fontSize: "11px", fontWeight: "bold", cursor: "pointer",
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            padding: 0, lineHeight: 1, minHeight: "18px",
+          }}
+        >?</button>
+        {open && (
+          <>
+            <div
+              style={{ position: "fixed", inset: 0, zIndex: 49 }}
+              onClick={() => setOpen(false)}
+            />
+            <div
+              className="rounded-lg border p-4 shadow-lg"
+              style={{
+                position: "absolute", top: "100%", left: "50%", transform: "translateX(-50%)",
+                zIndex: 50, width: "320px", maxWidth: "90vw",
+                backgroundColor: "var(--bg-primary)", borderColor: "var(--border-color)",
+                maxHeight: "300px", overflowY: "auto",
+              }}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-primary)" }}>Lock Functions</p>
+                <button onClick={() => setOpen(false)} style={{ color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", fontSize: "14px" }}>✕</button>
+              </div>
+              <div className="space-y-2">
+                {options.map((fn) => (
+                  <div key={fn.code} style={{ borderBottom: "1px solid var(--border-color)", paddingBottom: "6px" }}>
+                    <p className="text-xs font-semibold" style={{ color: "var(--accent)" }}>{fn.code} — {fn.name}</p>
+                    {fn.description && <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{fn.description}</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+      </span>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-5 sm:px-6 sm:py-8">
@@ -398,39 +621,19 @@ function Home() {
       <header className="mb-6 flex items-center justify-between sm:mb-8">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg text-lg font-bold text-white shadow-sm"
-            style={{ backgroundColor: mode === "high-contrast" ? "#000" : mode === "calm" ? "#6B6B6B" : "#1B2A4A" }}>
+            style={{ backgroundColor: mode === "high-contrast" ? "#000" : mode === "dark" ? "#1F1F1F" : mode === "calm" ? "#6B6B6B" : "#1B2A4A" }}>
             LB
           </div>
           <div>
             <h1 className="text-xl font-bold tracking-tight sm:text-2xl" style={{ color: "var(--text-primary)" }}>{t("LockBuilder")}</h1>
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>{tabMode === "build" ? t("Part Number Builder") : tabMode === "decode" ? t("Part Number Decoder") : t("Find Products")}</p>
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>{tabMode === "build" ? t("Part Number Builder") : tabMode === "decode" ? t("Part Number Decoder") : tabMode === "find" ? t("Find Products") : tabMode === "audit" ? "Security Audit" : "Resources"}</p>
+            <a href="https://22822198b50f564bb257f71390e5cd13.ctonew.app" target="_blank" rel="noopener noreferrer"
+              className="text-xs" style={{ color: "var(--accent)" }}>
+              🌐 Open in browser
+            </a>
           </div>
         </div>
         <div className="flex items-center gap-1 sm:gap-2">
-          <Link to="/functions" className="mode-toggle-btn" title="Lock Functions" aria-label="Lock Functions">
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ color: "var(--text-secondary)" }}>
-              {/* Lever handle — horizontal bar */}
-              <rect x="2" y="7" width="14" height="4" rx="1.5" fill="currentColor" opacity="0.4"/>
-              {/* Curved arrow showing push/pull direction */}
-              <path d="M13 5C13 5 15 5 15 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
-              <path d="M13 5L11.5 6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
-            </svg>
-          </Link>
-          <Link to="/handing" className="mode-toggle-btn" title="Door Handing" aria-label="Door Handing">
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ color: "var(--text-secondary)" }}>
-              {/* Door with hinge dots */}
-              <rect x="2" y="3" width="14" height="12" rx="1" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.4"/>
-              <circle cx="4" cy="5" r="1" fill="currentColor"/>
-              <circle cx="4" cy="9" r="1" fill="currentColor"/>
-              <circle cx="4" cy="13" r="1" fill="currentColor"/>
-              {/* Arrow inside */}
-              <path d="M6 9L12 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-              <path d="M10 7L12 9L10 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </Link>
-          <Link to="/donjo" className="mode-toggle-btn" title="Don-Jo Catalog" aria-label="Don-Jo Catalog">
-            <span className="text-xs font-semibold tracking-wider" style={{ color: "var(--text-secondary)" }}>DON-JO</span>
-          </Link>
           {user ? (
             <div className="flex items-center gap-1 sm:gap-2">
               <Link to="/jobs" className="mode-toggle-btn" title="My Jobs" aria-label="My Jobs">
@@ -492,7 +695,103 @@ function Home() {
           }}>
           🔎 {t("Find")}
         </button>
+        <button
+          onClick={() => setTabMode("resources")}
+          className="flex-1 rounded-lg py-2.5 text-sm font-medium transition-colors"
+          style={{
+            backgroundColor: tabMode === "resources" ? "var(--bg-primary)" : "transparent",
+            color: tabMode === "resources" ? "var(--text-primary)" : "var(--text-muted)",
+            boxShadow: tabMode === "resources" ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+            cursor: "pointer", minHeight: "44px", border: "none",
+          }}>
+          📚 Resources
+        </button>
+        <button onClick={() => setTabMode("audit")} className="flex-1 rounded-lg py-2.5 text-sm font-medium transition-colors" style={{ backgroundColor: tabMode === "audit" ? "var(--bg-primary)" : "transparent", color: tabMode === "audit" ? "var(--text-primary)" : "var(--text-muted)", boxShadow: tabMode === "audit" ? "0 1px 3px rgba(0,0,0,0.1)" : "none", cursor: "pointer", minHeight: "44px", border: "none" }}>🛡️ Audit</button>
       </div>
+
+      {/* ── Audit Mode ── */}
+      {tabMode === "audit" && (
+        <Suspense fallback={<p className="text-center py-8" style={{ color: "var(--text-muted)" }}>Loading audit...</p>}>
+          <SecurityAudit />
+        </Suspense>
+      )}
+
+      {/* ── Resources Mode ── */}
+      {tabMode === "resources" && (
+        <div className="space-y-3">
+          {/* Web Version Banner */}
+          {showResourcesBanner && (
+            <div className="relative flex flex-col items-center gap-3 rounded-xl border p-6 text-center" style={{ backgroundColor: "var(--bg-secondary)", borderColor: "var(--accent)", borderWidth: "1.5px" }}>
+              <span className="text-2xl">💡</span>
+              <div>
+                <p className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>Best viewed in your browser</p>
+                <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>PDFs open best in a full web browser with Ctrl+F search and zoom controls.</p>
+                <a href="https://22822198b50f564bb257f71390e5cd13.ctonew.app" target="_blank" rel="noopener noreferrer"
+                  className="mt-3 inline-block text-sm font-medium" style={{ color: "var(--accent)" }}>
+                  Open web version ↗
+                </a>
+              </div>
+              <button onClick={() => setShowResourcesBanner(false)}
+                className="absolute top-2 right-2 text-sm leading-none" style={{ color: "var(--text-muted)", padding: "4px 8px", minWidth: "32px", minHeight: "32px", background: "none", border: "none", cursor: "pointer" }}
+                aria-label="Dismiss">
+                ✕
+              </button>
+            </div>
+          )}
+          {/* Axxess Key Reference */}
+          <div className="rounded-xl border p-4" style={{ backgroundColor: "var(--bg-secondary)", borderColor: "var(--border-color)" }}>
+            <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>🔑 Axxess Key Reference — Axxess/Hillman ↔ ILCO/EZ</h2>
+            <input type="text" value={keyBlanksFilter} onChange={(e) => setKeyBlanksFilter(e.target.value)} placeholder="Search by Axxess #, ILCO #, or description..." className="mt-3 w-full rounded-lg px-4 py-3 text-sm" style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", minHeight: "48px" }} />
+            {keyBlanksData == null ? <p className="text-center py-8" style={{ color: "var(--text-muted)" }}>Loading key blanks...</p> : (() => { const filtered = keyBlanksFilter.trim() ? keyBlanksData.filter((b: any) => (b.axxessNumber || "").toLowerCase().includes(keyBlanksFilter.toLowerCase()) || (b.ilcoNumber || "").toLowerCase().includes(keyBlanksFilter.toLowerCase())) : keyBlanksData; return <><p className="mt-2" style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>{filtered.length} of {keyBlanksData.length} blanks</p>{filtered.slice(0, 100).map((b: any, i: number) => <div key={i} className="mt-1 flex items-center justify-between rounded-lg px-4 py-2 text-sm" style={{ backgroundColor: "var(--bg-primary)", border: "1px solid var(--border-color)" }}><span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{b.axxessNumber}</span><span style={{ color: "var(--text-muted)" }}>=</span><span style={{ fontFamily: "monospace", color: "var(--accent)" }}>{b.ilcoNumber}</span></div>)}</>; })()}
+          </div>
+          {/* Lock Functions */}
+          <div className="rounded-xl border p-4" style={{ backgroundColor: "var(--bg-secondary)", borderColor: "var(--border-color)" }}><h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>🔒 Lock Functions</h2><p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>Common commercial lock function codes at a glance.</p><div className="mt-3 space-y-1">{LOCK_FUNCTIONS.slice(0, 6).map(fn => <div key={fn.code} className="flex justify-between text-sm"><span style={{ color: "var(--accent)" }}>{fn.code}</span><span style={{ color: "var(--text-primary)" }}>{fn.name}</span></div>)}</div><a href="/functions" className="mt-3 inline-block text-sm font-medium" style={{ color: "var(--accent)" }}>View all functions →</a></div>
+          {/* Door Handing */}
+          <div className="rounded-xl border p-4" style={{ backgroundColor: "var(--bg-secondary)", borderColor: "var(--border-color)" }}><h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>🚪 Door Handing</h2><p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>Quick reference for standard door handing.</p><div className="mt-3 grid grid-cols-2 gap-2">{HANDING_TYPES.map(h => <div key={h.code} className="rounded border p-2 text-sm" style={{ borderColor: "var(--border-color)" }}><strong style={{ color: "var(--accent)" }}>{h.code}</strong><span className="ml-2" style={{ color: "var(--text-primary)" }}>{h.name}</span></div>)}</div><a href="/handing" className="mt-3 inline-block text-sm font-medium" style={{ color: "var(--accent)" }}>Full handing reference →</a></div>
+          {/* Keyboard Shortcuts Card */}
+          <div className="rounded-xl border p-4" style={{ backgroundColor: "var(--bg-secondary)", borderColor: "var(--border-color)" }}>
+            <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>⌨ Keyboard Shortcuts</h2>
+            <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>For searching and navigating PDFs in your browser</p>
+            <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+              {[
+                ["Find / Search", "Ctrl + F"],
+                ["Find next", "Ctrl + G"],
+                ["Find previous", "Ctrl + Shift + G"],
+                ["Print", "Ctrl + P"],
+                ["Save / Download", "Ctrl + S"],
+                ["Zoom in", "Ctrl + +"],
+                ["Zoom out", "Ctrl + −"],
+                ["Reset zoom", "Ctrl + 0"],
+                ["Scroll down", "Space"],
+                ["Scroll up", "Shift + Space"],
+                ["First page", "Home"],
+                ["Last page", "End"],
+              ].map(([action, shortcut]) => (
+                <div key={action} className="flex justify-between gap-2 py-0.5" style={{ borderBottom: "1px solid var(--border-color)" }}>
+                  <span style={{ color: "var(--text-muted)" }}>{action}</span>
+                  <kbd className="rounded px-1.5 py-px text-xs" style={{
+                    backgroundColor: "var(--bg-primary)",
+                    color: "var(--accent)",
+                    border: "1px solid var(--border-color)",
+                    fontFamily: "monospace",
+                    whiteSpace: "nowrap",
+                  }}>{shortcut.replace(/Ctrl/g, "⌃")}</kbd>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-xs" style={{ color: "var(--text-muted)" }}>
+              Mac: use <kbd className="rounded px-1 text-xs" style={{ fontFamily: "monospace", backgroundColor: "var(--bg-primary)", border: "1px solid var(--border-color)" }}>⌘ Cmd</kbd> instead of <kbd className="rounded px-1 text-xs" style={{ fontFamily: "monospace", backgroundColor: "var(--bg-primary)", border: "1px solid var(--border-color)" }}>Ctrl</kbd>
+            </p>
+          </div>
+          {/* ILCO 13th Edition Key Blank Directory */}
+          <a href="https://drive.google.com/file/d/1OXDuQUPXXV7UKtmzIGF2wOyrDklu1PQN/view?usp=drive_link" target="_blank" rel="noopener noreferrer"
+            className="block rounded-xl border p-4 transition-colors" style={{ backgroundColor: "var(--bg-secondary)", borderColor: "var(--border-color)" }}>
+            <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>ILCO 13th Edition Key Blank Directory</h2>
+            <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>Complete key blank reference — all manufacturers (hosted externally)</p>
+            <span className="mt-3 inline-block text-sm font-medium" style={{ color: "var(--accent)" }}>Open directory ↗</span>
+          </a>
+        </div>
+      )}
 
       {/* ── Decode Mode ── */}
       {tabMode === "decode" && (
@@ -698,12 +997,46 @@ function Home() {
               backgroundColor: "color-mix(in srgb, var(--success) 6%, transparent)",
             }}>
               <div className="mb-4">
-                <p className="text-xs font-medium uppercase tracking-widest" style={{ color: "var(--success)" }}>Decoded Part Number</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium uppercase tracking-widest" style={{ color: "var(--success)" }}>Decoded Part Number</p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => openInBuilder(decodeResult)}
+                      className="rounded-md px-2 py-1 text-xs font-medium transition-colors"
+                      style={{
+                        backgroundColor: "var(--accent)",
+                        color: "#fff",
+                        border: "1px solid var(--accent)",
+                        cursor: "pointer",
+                        minHeight: "28px",
+                        whiteSpace: "nowrap",
+                      }}
+                    >🔨 Open in Builder</button>
+                    <CopyButton text={decodeResult.partNumber} />
+                  </div>
+                </div>
                 <p className="mt-1 font-mono text-lg font-bold" style={{ color: "var(--text-primary)" }}>{decodeResult.partNumber}</p>
                 <p className="mt-0.5 text-sm" style={{ color: "var(--text-muted)" }}>
                   {decodeResult.manufacturerName} — {decodeResult.seriesName}
                 </p>
               </div>
+              {/* Plain-English translation (UUS) */}
+              {(() => {
+                const uusLines = translateDecoded(decodeResult, data.manufacturerFiles);
+                if (uusLines.length === 0) return null;
+                return (
+                  <div className="mb-4 rounded-lg border p-3" style={{ borderColor: "var(--border-color)", backgroundColor: "var(--bg-secondary)" }}>
+                    <p className="mb-1 text-xs font-medium uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
+                      In plain English
+                    </p>
+                    <ul className="space-y-0.5">
+                      {uusLines.map((line, i) => (
+                        <li key={i} className="text-sm" style={{ color: "var(--text-primary)" }}>{line}</li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })()}
 
               {/* Token breakdown */}
               <div className="space-y-2">
@@ -770,7 +1103,7 @@ function Home() {
               type="text"
               value={findQuery}
               onChange={(e) => setFindQuery(e.target.value)}
-              placeholder="Search by name, series, brand, or category..."
+              placeholder={useLayman ? "Try: heavy duty school lock, satin chrome storeroom lever..." : "Search by name, series, brand, or category..."}
               className="mt-1 w-full rounded-lg border px-4 py-3 text-sm transition-colors"
               style={{
                 backgroundColor: "var(--bg-primary)",
@@ -780,6 +1113,23 @@ function Home() {
                 outline: "none",
               }}
             />
+            <div className="mt-2 flex items-center gap-2">
+              <button
+                onClick={() => setLaymanForce(!laymanForce)}
+                className="rounded-full px-3 py-1.5 text-xs font-medium transition-colors"
+                style={{
+                  backgroundColor: useLayman ? "var(--accent)" : "color-mix(in srgb, var(--accent) 10%, transparent)",
+                  color: useLayman ? "#fff" : "var(--accent)",
+                  cursor: "pointer",
+                  minHeight: "32px",
+                  border: "none",
+                }}>
+                {useLayman ? "🔎 Plain English search" : "🔎 Plain English search (off)"}
+              </button>
+              <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                {useLayman ? `Matching by meaning — try "school lock" or "panic bar".` : "Type a part number / series for exact find, or toggle plain-English search."}
+              </span>
+            </div>
           </div>
 
           {/* Filter chips */}
@@ -907,6 +1257,11 @@ function Home() {
                           {result.grade === "residential" ? "Residential" : `Grade ${result.grade}`}
                         </span>
                       )}
+                      {(result as { matchedAttributes?: string[] }).matchedAttributes?.map((m) => (
+                        <span key={m} className="rounded px-1.5 py-0.5 text-xs font-medium" style={{ backgroundColor: "color-mix(in srgb, var(--accent) 14%, transparent)", color: "var(--accent)" }}>
+                          {m.replace(/^[A-Za-z]+: /, "")}
+                        </span>
+                      ))}
                     </div>
                   </div>
                   <button
@@ -954,6 +1309,153 @@ function Home() {
       {/* ── Build Mode ── */}
       {tabMode === "build" && (
         <>
+          {/* Build mode toggle */}
+          <div className="mb-3 flex gap-2">
+            <button
+              onClick={() => setBuildModeSimple(false)}
+              className="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors"
+              style={{
+                backgroundColor: buildModeSimple ? "color-mix(in srgb, var(--text-muted) 10%, transparent)" : "var(--accent)",
+                color: buildModeSimple ? "var(--text-secondary)" : "#fff",
+                cursor: "pointer", minHeight: "44px", border: "none",
+              }}>
+              Standard build
+            </button>
+            <button
+              onClick={() => setBuildModeSimple(true)}
+              className="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors"
+              style={{
+                backgroundColor: buildModeSimple ? "var(--accent)" : "color-mix(in srgb, var(--text-muted) 10%, transparent)",
+                color: buildModeSimple ? "#fff" : "var(--text-secondary)",
+                cursor: "pointer", minHeight: "44px", border: "none",
+              }}>
+              ✨ Simple build
+            </button>
+          </div>
+          {buildModeSimple && (
+            <div className="mb-4 rounded-lg border p-3" style={{ borderColor: "var(--border-color)", backgroundColor: "var(--bg-secondary)" }}>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
+                Describe the hardware — we'll map it to a real part number
+              </p>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <div>
+                  <label className="text-xs" style={{ color: "var(--text-muted)" }}>Category</label>
+                  <select value={uusSel.category ?? ""} onChange={(e) => setUusField("category", e.target.value)}
+                    className="w-full rounded-lg border px-2 py-2 text-sm" style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)", borderColor: "var(--border-color)" }}>
+                    <option value="">Any</option>
+                    {Object.entries(UUS_CATEGORIES).filter(([k]) => !["other", "key-blank", "key-machine", "software"].includes(k)).map(([k, label]) => (
+                      <option key={k} value={k} disabled={uusSel.category !== k && !(uusAvailable.category?.has(k) ?? true)}>{label}{uusSel.category !== k && !(uusAvailable.category?.has(k) ?? true) ? " — n/a" : ""}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs" style={{ color: "var(--text-muted)" }}>Grade</label>
+                  <select value={uusSel.grade ?? ""} onChange={(e) => setUusField("grade", e.target.value)}
+                    className="w-full rounded-lg border px-2 py-2 text-sm" style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)", borderColor: "var(--border-color)" }}>
+                    <option value="">Any</option>
+                    {Object.entries(UUS_GRADES).map(([k, label]) => (
+                      <option key={k} value={k} disabled={uusSel.grade !== k && !(uusAvailable.grade?.has(k) ?? true)}>{label}{uusSel.grade !== k && !(uusAvailable.grade?.has(k) ?? true) ? " — n/a" : ""}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs" style={{ color: "var(--text-muted)" }}>Function</label>
+                  <select value={uusSel.function ?? ""} onChange={(e) => setUusField("function", e.target.value)}
+                    className="w-full rounded-lg border px-2 py-2 text-sm" style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)", borderColor: "var(--border-color)" }}>
+                    <option value="">Any</option>
+                    {["passage", "privacy", "entrance", "office", "storeroom", "classroom", "classroom-security", "communicating", "dummy", "deadbolt"].map((k) => (
+                      <option key={k} value={k} disabled={uusSel.function !== k && !(uusAvailable.function?.has(k) ?? true)}>{UUS_FUNCTIONS[k]}{uusSel.function !== k && !(uusAvailable.function?.has(k) ?? true) ? " — n/a" : ""}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs" style={{ color: "var(--text-muted)" }}>Style</label>
+                  <select value={uusSel.style ?? ""} onChange={(e) => setUusField("style", e.target.value)}
+                    className="w-full rounded-lg border px-2 py-2 text-sm" style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)", borderColor: "var(--border-color)" }}>
+                    <option value="">Any</option>
+                    {["straight", "curved", "flat", "ornate", "knob"].map((k) => (
+                      <option key={k} value={k} disabled={uusSel.style !== k && !(uusAvailable.style?.has(k) ?? true)}>{UUS_DESIGN_STYLES[k]}{uusSel.style !== k && !(uusAvailable.style?.has(k) ?? true) ? " — n/a" : ""}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs" style={{ color: "var(--text-muted)" }}>Finish</label>
+                  <select value={uusSel.finish ?? ""} onChange={(e) => setUusField("finish", e.target.value)}
+                    className="w-full rounded-lg border px-2 py-2 text-sm" style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)", borderColor: "var(--border-color)" }}>
+                    <option value="">Any</option>
+                    {["brass", "bronze", "chrome", "stainless", "nickel", "black", "gold", "aluminum"].map((k) => (
+                      <option key={k} value={k} disabled={uusSel.finish !== k && !(uusAvailable.finish?.has(k) ?? true)}>{k[0].toUpperCase() + k.slice(1)}{uusSel.finish !== k && !(uusAvailable.finish?.has(k) ?? true) ? " — n/a" : ""}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs" style={{ color: "var(--text-muted)" }}>Cylinder</label>
+                  <select value={uusSel.cylinder ?? ""} onChange={(e) => setUusField("cylinder", e.target.value)}
+                    className="w-full rounded-lg border px-2 py-2 text-sm" style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)", borderColor: "var(--border-color)" }}>
+                    <option value="">Any</option>
+                    {["conventional", "sf-ic", "lf-ic", "keyed-removable", "electronic"].map((k) => (
+                      <option key={k} value={k} disabled={uusSel.cylinder !== k && !(uusAvailable.cylinder?.has(k) ?? true)}>{UUS_CYLINDER_TYPES[k]}{uusSel.cylinder !== k && !(uusAvailable.cylinder?.has(k) ?? true) ? " — n/a" : ""}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              {constraintBlocked && (
+                <div className="mt-3 rounded-lg border px-3 py-2 text-xs" style={{ borderColor: "#fca5a5", backgroundColor: "#fef2f2", color: "#991b1b" }}>
+                  <span className="font-semibold">⚠️ {constraintBlocked}</span>
+                </div>
+              )}
+              {Object.values(uusSel).some(Boolean) && (
+                <div className="mt-3">
+                  <p className="mb-1 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                    {uusCandidates.length} matching series across all brands — pick one to map to its real options
+                  </p>
+                  <div className="max-h-48 space-y-1 overflow-y-auto">
+                    {uusCandidates.slice(0, 12).map((cand) => (
+                      <button
+                        key={`${cand.manufacturerId}-${cand.product.series}`}
+                        onClick={() => {
+                          const validation = validateUusMapping(cand, uusSel);
+                          setConstraintBlocked(null);
+                          if (validation.blocked) {
+                            setConstraintBlocked(validation.blockMessage ?? "That series can't satisfy those choices.");
+                            setUusMissing(validation.missing);
+                            return; // HARD BLOCK — do not populate the builder with an invalid mapping
+                          }
+                          pushToasts(validation.corrections);
+                          const mapping = mapUusSelection(cand.product, validation.corrections.length > 0 ? { ...uusSel, ...validation.corrections.reduce((acc, c) => ({ ...acc, [c.field]: c.to }), {}) } : uusSel);
+                          setUusMissing(mapping.missing);
+                          setSelection({
+                            manufacturerId: cand.manufacturerId,
+                            manufacturerName: cand.manufacturerName,
+                            series: cand.product,
+                            pins: null,
+                            options: mapping.optionObjects,
+                          });
+                        }}
+                        className="w-full rounded-lg px-3 py-2 text-left text-xs transition-colors"
+                        style={{ backgroundColor: "var(--bg-primary)", border: "1px solid var(--border-color)", cursor: "pointer", minHeight: "40px" }}>
+                        <span className="font-medium" style={{ color: "var(--text-primary)" }}>{cand.manufacturerName} — {cand.product.name}</span>
+                        <span className="ml-2" style={{ color: "var(--accent)" }}>{cand.matched.join(" · ")}</span>
+                      </button>
+                    ))}
+                    {uusCandidates.length === 0 && (
+                      <p className="py-2 text-xs" style={{ color: "var(--text-muted)" }}>No series match those choices — try fewer attributes.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+              {uusMissing.length > 0 && (
+                <div className="mt-3">
+                  <p className="mb-1 text-xs font-medium" style={{ color: "#92400e" }}>Not offered on the selected series:</p>
+                  {uusMissing.map((m) => (
+                    <span key={`${m.field}-${m.label}`} className="mr-1.5 inline-block rounded px-1.5 py-0.5 text-xs" style={{ backgroundColor: "#fef3c7", color: "#92400e" }}>
+                      {m.label}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           <div className="mb-4">
         <SearchableSelect
           label="Brand"
@@ -1020,44 +1522,94 @@ function Home() {
               {partNumber ? (
                 /* Complete part number */
                 <section className="part-number-display mb-3">
-                  <p className="mb-1 text-xs font-medium uppercase tracking-widest" style={{ color: "var(--success)" }}>Complete Part Number</p>
+                  <div className="mb-1 flex items-center justify-between">
+                    <p className="text-xs font-medium uppercase tracking-widest" style={{ color: "var(--success)" }}>Complete Part Number</p>
+                    <CopyButton text={partNumber} />
+                  </div>
                   <p className="part-number">{partNumber}</p>
                   {selection.series?.examples && (
                     <p className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
                       Examples: {selection.series.examples.join(", ")}
                     </p>
                   )}
-                  {user && (
+                  <div className="mt-3 flex gap-2">
+                    {user && (
+                      <button onClick={() => {
+                        const sp: SavedPart = {
+                          partNumber: partNumber!,
+                          manufacturer: currentManufacturer?.manufacturer ?? "",
+                          series: selection.series?.name ?? "",
+                          function: selection.options.function?.name ?? "",
+                          finish: selection.options.finish?.name ?? "",
+                          keyway: selection.options.keyway?.name ?? "",
+                          pins: selection.pins?.toString() ?? "",
+                          handing: selection.options.handing?.name ?? "",
+                          backset: selection.options.backset?.name ?? "",
+                          notes: buildNotes,
+                        };
+                        setSaveJobPart(sp);
+                      }}
+                        className="flex-1 rounded-lg py-3 text-sm font-medium transition-colors"
+                        style={{
+                          backgroundColor: "color-mix(in srgb, var(--accent) 10%, transparent)",
+                          color: "var(--accent)", border: "1px solid color-mix(in srgb, var(--accent) 20%, transparent)",
+                          cursor: "pointer", minHeight: "48px",
+                        }}>
+                        + Save to Job
+                      </button>
+                    )}
                     <button onClick={() => {
-                      const sp: SavedPart = {
-                        partNumber: partNumber!,
-                        manufacturer: currentManufacturer?.manufacturer ?? "",
-                        series: selection.series?.name ?? "",
-                        function: selection.options.function?.name ?? "",
-                        finish: selection.options.finish?.name ?? "",
-                        keyway: selection.options.keyway?.name ?? "",
-                        pins: selection.pins?.toString() ?? "",
-                        handing: selection.options.handing?.name ?? "",
-                        backset: selection.options.backset?.name ?? "",
-                        notes: "",
-                      };
-                      setSaveJobPart(sp);
+                      const lines: string[] = [];
+                      lines.push("══════════════════════════════════");
+                      lines.push("         LOCK BUILD CARD");
+                      lines.push("══════════════════════════════════");
+                      lines.push("");
+                      lines.push(`Part Number: ${partNumber}`);
+                      lines.push(`Brand:       ${currentManufacturer?.manufacturer ?? ""}`);
+                      lines.push(`Series:      ${selection.series?.name ?? ""}`);
+                      if (selection.options.function) lines.push(`Function:    ${selection.options.function.code} — ${selection.options.function.name}`);
+                      if (selection.options.finish) lines.push(`Finish:      ${selection.options.finish.code} — ${selection.options.finish.name}`);
+                      if (selection.options.keyway) lines.push(`Keyway:      ${selection.options.keyway.code} — ${selection.options.keyway.name}`);
+                      if (selection.options.handing) lines.push(`Handing:     ${selection.options.handing.code} — ${selection.options.handing.name}`);
+                      if (selection.options.backset) lines.push(`Backset:     ${selection.options.backset.code} — ${selection.options.backset.name}`);
+                      if (selection.pins) lines.push(`Pins:        ${selection.pins}`);
+                      if (buildNotes.trim()) {
+                        lines.push("");
+                        lines.push("Notes:");
+                        lines.push(buildNotes.trim());
+                      }
+                      lines.push("");
+                      lines.push("══════════════════════════════════");
+                      lines.push(`Printed: ${new Date().toLocaleDateString()}`);
+                      lines.push("Generated by LockBuilder");
+                      const text = lines.join("\n");
+
+                      const w = window.open("", "_blank", "width=500,height=600");
+                      if (w) {
+                        w.document.write(`<pre style="font-family: monospace; font-size: 14px; line-height: 1.6; padding: 20px; white-space: pre-wrap;">${text.replace(/</g, "<").replace(/>/g, ">")}</pre><script>window.print();<\/script>`);
+                        w.document.close();
+                      }
                     }}
-                      className="mt-3 w-full rounded-lg py-3 text-sm font-medium transition-colors"
+                      className="rounded-lg px-4 py-3 text-sm font-medium transition-colors"
                       style={{
-                        backgroundColor: "color-mix(in srgb, var(--accent) 10%, transparent)",
-                        color: "var(--accent)", border: "1px solid color-mix(in srgb, var(--accent) 20%, transparent)",
-                        cursor: "pointer", minHeight: "48px",
+                        backgroundColor: "var(--bg-secondary)",
+                        color: "var(--text-primary)",
+                        border: "1px solid var(--border-color)",
+                        cursor: "pointer",
+                        minHeight: "48px",
                       }}>
-                      + Save to Job
+                      🖨️ Print Card
                     </button>
-                  )}
+                  </div>
                 </section>
               ) : partialPartNumber ? (
                 /* Partial part number */
                 <section className="mb-3 rounded-lg border border-dashed p-4"
                   style={{ borderColor: "var(--border-color)", backgroundColor: "var(--bg-secondary)" }}>
-                  <p className="mb-1 text-xs font-medium uppercase tracking-widest" style={{ color: "var(--brass)" }}>Partial Part Number</p>
+                  <div className="mb-1 flex items-center justify-between">
+                    <p className="text-xs font-medium uppercase tracking-widest" style={{ color: "var(--brass)" }}>Partial Part Number</p>
+                    <CopyButton text={partialPartNumber!} />
+                  </div>
                   <p className="part-number" style={{ opacity: 0.7 }}>{partialPartNumber}</p>
                   <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
                     Select all {fieldTotal} options to complete ({fieldTotal - fieldSelected} remaining)
@@ -1065,6 +1617,30 @@ function Home() {
                 </section>
               ) : null}
             </>
+          )}
+
+          {/* Quick Notes — always visible when series is selected */}
+          {selection.series && (
+            <div className="mb-4">
+              <label className="label-text">Quick Notes</label>
+              <textarea
+                value={buildNotes}
+                onChange={(e) => setBuildNotes(e.target.value)}
+                placeholder="Door is 1-3/4 thick, existing strike is ANSI, customer wants keyed-alike..."
+                rows={2}
+                className="mt-1 w-full rounded-lg px-4 py-3 text-sm transition-colors resize-none"
+                style={{
+                  backgroundColor: "var(--bg-secondary)",
+                  color: "var(--text-primary)",
+                  border: "1px solid var(--border-color)",
+                  outline: "none",
+                  minHeight: "60px",
+                  fontFamily: "inherit",
+                }}
+                onFocus={(e) => { e.target.style.borderColor = "var(--accent)"; }}
+                onBlur={(e) => { e.target.style.borderColor = "var(--border-color)"; }}
+              />
+            </div>
           )}
 
           {/* Cross-brand conversion toast */}
@@ -1135,6 +1711,8 @@ function Home() {
                   onChange={(opt) => updateSelection(key, opt as SeriesOption | null)}
                   placeholder={getFieldPlaceholder(key)}
                   displayKey="name"
+                  highlightEmpty={!!selection.series && !currentValue}
+                  labelExtra={key === "function" ? <FunctionHelp options={options} /> : undefined}
                 />
               );
             })}
@@ -1153,8 +1731,8 @@ function Home() {
             </div>
           )}
 
-          {/* Pin Count Selector — only show if the selected keyway has multiple pin options */}
-          {selection.options.keyway?.availablePins && selection.options.keyway.availablePins.length > 0 && (
+          {/* Pin Count Selector — only show when keyway supports multiple pin counts */}
+          {selection.options.keyway?.availablePins && selection.options.keyway.availablePins.length > 1 && (
             <div className="mt-4">
               <label className="label-text">Pin Count</label>
               <div className="mt-1 flex flex-wrap gap-2">
@@ -1194,11 +1772,6 @@ function Home() {
                   </button>
                 )}
               </div>
-              {selection.options.keyway.availablePins.length === 1 && (
-                <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
-                  Only {selection.options.keyway.availablePins[0]}-pin available for this keyway — auto-selected.
-                </p>
-              )}
             </div>
           )}
 
@@ -1271,11 +1844,38 @@ function Home() {
                           <p className="truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>
                             {ref.partNumber}
                           </p>
-                          <a href={manu?.website ?? "#"} target="_blank" rel="noopener noreferrer"
-                            className="truncate text-xs underline-offset-2 hover:underline" style={{ color: "var(--accent)" }}>
-                            {ref.manufacturer}
-                          </a>
+                          <p className="truncate text-xs" style={{ color: "var(--text-muted)" }}>
+                            {ref.manufacturer}{ref.series ? ` — ${ref.series}` : ""}
+                          </p>
                         </div>
+                        {id && (
+                          <button
+                            onClick={() => {
+                              const file = data.manufacturerFiles[id];
+                              const matchingSeries = file?.products.find(
+                                (p) => ref.series && p.series.toLowerCase().includes(ref.series.toLowerCase())
+                              );
+                              setSelection({
+                                manufacturerId: id,
+                                manufacturerName: data.manufacturers.find((m) => m.id === id)?.name ?? null,
+                                series: matchingSeries ?? null,
+                                pins: null,
+                                options: {},
+                              });
+                              setTabMode("build");
+                              window.scrollTo({ top: 0, behavior: "smooth" });
+                            }}
+                            className="shrink-0 rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
+                            style={{
+                              backgroundColor: "color-mix(in srgb, var(--accent) 10%, transparent)",
+                              color: "var(--accent)",
+                              border: "1px solid color-mix(in srgb, var(--accent) 20%, transparent)",
+                              cursor: "pointer",
+                              minHeight: "28px",
+                            }}>
+                            View
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
@@ -1300,6 +1900,8 @@ function Home() {
           </p>
         </div>
       )}
+        </>
+      )}
 
       {/* Footer */}
       <footer className="mt-10 border-t pt-5 text-center text-xs"
@@ -1319,8 +1921,6 @@ function Home() {
       <SettingsPanel
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
-        theme={theme}
-        setTheme={setTheme}
         mode={mode}
         setMode={setMode}
         lang={lang}
@@ -1361,9 +1961,26 @@ function Home() {
               {saveToast}
             </div>
           )}
+          {constraintToasts.length > 0 && (
+            <div style={{
+              position: "fixed", bottom: "80px", left: "50%", transform: "translateX(-50%)",
+              zIndex: 998, display: "flex", flexDirection: "column", gap: "6px",
+              width: "min(90vw, 420px)",
+            }}>
+              {constraintToasts.map((c, i) => (
+                <div key={`${c.field}-${c.to}-${i}`} style={{
+                  backgroundColor: "var(--accent)", color: "#fff",
+                  padding: "10px 16px", borderRadius: "10px", fontSize: "13px",
+                  fontWeight: 500, boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
+                  textAlign: "center", lineHeight: 1.35,
+                }}>
+                  🔁 {c.message}
+                </div>
+              ))}
+            </div>
+          )}
         </>
       )}
-      </>)}
     </div>
   );
 }

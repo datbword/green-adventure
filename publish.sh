@@ -12,6 +12,9 @@ umask 002
 mkdir -p .run
 
 bun run build
+# Static data is excluded from Vite publicDir; copy it into the published client assets.
+mkdir -p dist/client/data
+cp -r public/data/. dist/client/data/
 setsid nohup bun run start > .run/server.log 2>&1 < /dev/null &
 
 # Wait for the new server to actually answer before reporting success, so a

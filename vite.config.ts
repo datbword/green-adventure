@@ -13,6 +13,15 @@ export default defineConfig({
     // rejects a proxied request with "Blocked request".
     allowedHosts: true,
   },
+  publicDir: false,
+  build: {
+    rollupOptions: {
+      output: {
+        // Let Vite auto-split; React.lazy() handles tab-specific components.
+        // manualChunks removed — the old single-bundle workaround isn't needed.
+      },
+    },
+  },
   plugins: [
     tailwindcss(),
     tsConfigPaths({

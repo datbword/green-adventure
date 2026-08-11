@@ -1,4 +1,5 @@
 import type { ManufacturerData, ProductSeries } from "~/types";
+import { uusSearchText, parseLaymanQuery, matchLayman, type UusSynonymsFile } from "~/utils/uus";
 
 export interface SearchFilters {
   query: string;
@@ -73,8 +74,9 @@ export function buildSearchIndex(
   const index: IndexedProduct[] = [];
   for (const [mfrId, data] of Object.entries(manufacturerFiles)) {
     for (const product of data.products) {
+      // UUS search text comes from the RUNTIME derivation (canonical source).
       const searchText = normalize(
-        `${product.name} ${product.series} ${product.category} ${data.manufacturer} ${product.description ?? ""}`,
+        `${product.name} ${product.series} ${product.category} ${data.manufacturer} ${product.description ?? ""} ${uusSearchText(product)}`,
       );
       index.push({
         manufacturerId: mfrId,
@@ -128,6 +130,22 @@ export function searchProducts(
       }
       // Skip if no match at all
       if (matchScore === 0) continue;
+      // Phase B: layman-vocabulary boost — when EVERY query token matches through the
+      // search text (UUS attributes/descriptions) and at least one token is NOT in the
+      // product's own names (series/name/manufacturer), the match is an attribute-level
+      // hit ("school lock" → classroom/Grade-1 levers, not any product named "* lock").
+      if (queryTokens.length >= 2) {
+        const allInText = queryTokens.every(t => entry.searchText.includes(t));
+        const strong = (t: string) =>
+          normalize(product.series).includes(t) || normalize(product.name).includes(t) || normalize(entry.manufacturerName).includes(t);
+        const hasAttributeToken = queryTokens.some(t => !strong(t));
+        if (allInText && hasAttributeToken) {
+          // A query matched ENTIRELY through attribute vocabulary ("satin chrome") is the
+          // strongest layman signal — it must outrank products that merely share a name token.
+          const allAttribute = queryTokens.every(t => !strong(t));
+          matchScore += allAttribute ? 40 : 15;
+        }
+      }
     } else {
       // No query — all filtered products pass with base score
       matchScore = 1;
@@ -197,4 +215,46 @@ export function getFilterOptions(index: IndexedProduct[]): {
       .sort(([, a], [, b]) => b - a)
       .map(([value, count]) => ({ value, label: gradeLabels[value] || value, count })),
   };
+}
+
+/** Layman (plain-English) search: map the query through uus-synonyms.json → UUS attributes,
+ *  match against the RUNTIME deriveUus() attributes of every indexed product, rank by number of
+ *  matched attribute groups (specific groups weighted first), and return chips per result. */
+export interface LaymanSearchResult extends SearchResult {
+  matchedAttributes: string[];
+  laymanScore: number;
+}
+export function laymanSearch(
+  index: IndexedProduct[],
+  query: string,
+  synonyms: UusSynonymsFile | null,
+  limit: number = 30,
+): LaymanSearchResult[] {
+  const q = parseLaymanQuery(query, synonyms);
+  const out: LaymanSearchResult[] = [];
+  for (const entry of index) {
+    const m = matchLayman(entry.product, q);
+    if (m.count === 0) continue;
+    const specific = m.matched.filter(x => /^(Function|Finish|Style|Cylinder|Feature):/.test(x)).length;
+    const generic = m.count - specific;
+    // Name-phrase bonus: a product whose own name/series contains a matched multi-word layman
+    // phrase ("smart deadbolt") is more relevant than one matching only through attributes —
+    // keeps literal smart deadbolts above plain electronic locks on the same score.
+    const nameText = normalize(`${entry.product.name} ${entry.product.series}`);
+    const nameBonus = (q.matchedPhrases ?? []).filter(p => p.includes(" ") && nameText.includes(p)).length * 2;
+    out.push({
+      manufacturerId: entry.manufacturerId,
+      manufacturerName: entry.manufacturerName,
+      productName: entry.product.name,
+      series: entry.product.series,
+      category: normalizeCategory(entry.product.category ?? ""),
+      grade: extractGrade(entry.product) || "—",
+      partNumberPattern: entry.product.partNumberPattern,
+      matchScore: m.count,
+      matchedAttributes: m.matched,
+      laymanScore: specific * 3 + generic + nameBonus,
+    });
+  }
+  out.sort((a, b) => b.laymanScore - a.laymanScore || b.matchScore - a.matchScore);
+  return out.slice(0, limit);
 }

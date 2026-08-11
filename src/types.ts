@@ -70,14 +70,96 @@ export interface CrossRefData {
   families: CrossRefFamily[];
 }
 
+export interface UusAttributeEntry {
+  product_name?: string;
+  product_category?: string;
+  category_source?: string;
+  grade?: string;
+  grade_source?: string;
+  functions?: { code: string; uus_function: string }[];
+  design_styles?: string[];
+  design_style_names?: string[];
+  sizing_power?: string[];
+  finish_family?: string[];
+  cylinder_types?: string[];
+}
+export type UusAttributesFile = Record<string, Record<string, UusAttributeEntry>>;
 export interface DataCache {
   manufacturers: ManufacturerOption[];
   manufacturerFiles: Record<string, ManufacturerData>;
   crossReferences: CrossRefData | null;
+  constraintTable: unknown; // ConstraintTable from src/utils/uus-constraints.ts (loaded lazily to avoid cycle)
 }
 
 export interface FieldConfig {
   key: string;
   label: string;
   placeholder: string;
+}
+
+// ── Key Blanks ──
+
+export interface KeyBlank {
+  axxessNumber: string;
+  ilcoNumber: string;
+  fits: string;
+  category: string;
+  keyway: string;
+}
+
+// ── ILCO Directory ──
+
+export interface IlcoCrossRefValue {
+  code: string | null;
+  id: string | null;
+}
+
+export interface IlcoCrossRefs {
+  ilcoCatalogId?: string;
+  original?: IlcoCrossRefValue;
+  axxess?: IlcoCrossRefValue;
+  jma?: IlcoCrossRefValue;
+  silca?: IlcoCrossRefValue;
+  jet?: IlcoCrossRefValue;
+  taylor?: IlcoCrossRefValue;
+  curtis?: IlcoCrossRefValue;
+  dominion?: IlcoCrossRefValue;
+  esp?: IlcoCrossRefValue;
+}
+
+export interface IlcoBlank {
+  ilcoNumber: string;
+  family: string;
+  familyName: string;
+  brand: string;
+  branchRole?: "master" | "standard" | "pass-through";
+  masterFor?: string[];
+  cutFrom?: string;
+  isPassThrough?: boolean;
+  pinCount?: number;
+  keyway?: string;
+  shoulderType?: string;
+  description?: string;
+  crossReferences: IlcoCrossRefs;
+  tags?: string[];
+  flag?: string;
+}
+
+export interface IlcoFamily {
+  family: string;
+  familyName: string;
+  brand: string;
+  description?: string;
+  blanks: IlcoBlank[];
+}
+
+export interface IlcoDirectoryData {
+  families: IlcoFamily[];
+  meta?: {
+    description?: string;
+    lastUpdated?: string;
+    totalFamilies?: number;
+    totalBlanks?: number;
+    uncertainCount?: number;
+  };
 }

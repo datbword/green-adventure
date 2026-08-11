@@ -1,0 +1,10 @@
+{
+  "company_name": "Your Locksmith Company",
+  "company_address": "123 Main St, City, State",
+  "company_phone": "(555) 123-4567",
+  "company_email": "info@yourcompany.com",
+  "audit_report_header": "Security Audit Report",
+  "audit_report_footer": "Confidential - For authorized personnel only",
+  "include_disclaimer": true,
+  "disclaimer_text": "This audit is a professional opinion based on visual inspection. For formal security certification, consult a licensed security professional."
+}
