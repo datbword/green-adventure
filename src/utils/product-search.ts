@@ -5,6 +5,7 @@ import {
   matchLayman,
   deriveUus,
   categoryFormMatches,
+  isLeverForm,
   UUS_CYLINDER_TYPES,
   type UusSynonymsFile,
   type UusLaymanAttributes,
@@ -213,6 +214,11 @@ function parseSemanticQuery(query: string, synonyms: UusSynonymsFile | null, ind
   const q = normalize(query);
   const words = q.split(" ").filter(Boolean);
   const consumed: boolean[] = words.map(() => false);
+  // Words consumed by a BRAND name must not also act as attribute filters: "Yale Commercial"
+  // consumed "commercial" (a synonyms phrase → types.commercial), which would otherwise
+  // hard-filter every Yale product out of "yale commercial lever". Phrase-consumed words stay
+  // in the attrs query — the phrase IS their attribute meaning.
+  const brandConsumed: boolean[] = words.map(() => false);
   const brandIds = new Set<string>();
   if (words.length > 0) {
     // 1) full manufacturer names ("arrow lock", "von duprin", "cal royal products") — longest first
@@ -226,7 +232,7 @@ function parseSemanticQuery(query: string, synonyms: UusSynonymsFile | null, ind
         if (words.slice(i, i + nw.length).join(" ") !== name) continue;
         const mfr = index.find(e => normalize(e.manufacturerName) === name);
         if (mfr) brandIds.add(mfr.manufacturerId);
-        nw.forEach((_, j) => (consumed[i + j] = true));
+        nw.forEach((_, j) => { consumed[i + j] = true; brandConsumed[i + j] = true; });
         break;
       }
     }
@@ -238,6 +244,7 @@ function parseSemanticQuery(query: string, synonyms: UusSynonymsFile | null, ind
       if (mfr) {
         brandIds.add(mfr.manufacturerId);
         consumed[i] = true;
+        brandConsumed[i] = true;
       }
     });
     // 3) synonym phrases (multi-word first); normalized keys so "full-size"/"cush-n-stop" match the
@@ -257,7 +264,8 @@ function parseSemanticQuery(query: string, synonyms: UusSynonymsFile | null, ind
     }
   }
   const textTokens = words.filter((_, i) => !consumed[i]);
-  const attrs = parseLaymanQuery(query, synonyms);
+  // Attribute meaning comes from non-brand words only (see brandConsumed note above).
+  const attrs = parseLaymanQuery(words.filter((_, i) => !brandConsumed[i]).join(" "), synonyms);
   const finish626 = /\b(26d|us26d|626)\b/.test(q);
   const hasNonBrand =
     finish626 ||
@@ -336,12 +344,12 @@ function semanticMatch(entry: IndexedProduct, sq: SemanticQuery): string[] | nul
     if (q.styles.has("knob") && isKnobForm) {
       ok = true;
       chips.push("Style: Knob");
-    } else if (
-      q.styles.has("lever") &&
-      !isKnobForm &&
-      a.designStyle.id !== "none" &&
-      /lever|cylindrical/.test(nameText)
-    ) {
+    } else if (q.styles.has("lever") && isLeverForm(p, a)) {
+      // Shared lever-form rule (uus.ts): non-knob product with a concrete lever-form designStyle
+      // bucket (flat/straight/curved/standard/lever) in a lock category, OR "lever"/"cylindrical"
+      // in its own name/series/style options. Fixes Marks USA "195N/RA" (bucket flat), PDQ
+      // "GT126-PHI" (bucket straight), Cal-Royal GN00 (name says Lever) — previously excluded
+      // because the gate demanded the literal words lever|cylindrical in the name.
       ok = true;
       chips.push("Style: Lever");
     } else if (q.styles.has(a.designStyle.id)) {

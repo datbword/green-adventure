@@ -100,6 +100,7 @@ export const UUS_DESIGN_STYLES: Record<string, string> = {
   "curved": "Curved",
   "flat": "Flat / Modern",
   "ornate": "Ornate / Decorative",
+  "lever": "Lever",
   "knob": "Knob",
   "escutcheon": "Escutcheon / Trim",
   "standard": "Standard",
@@ -288,14 +289,25 @@ function deriveFunctions(product: ProductSeries): UusValue[] {
   // 1) options.function names (strongest signal)
   const fnOpts: SeriesOption[] = product.options?.["function"] ?? [];
   for (const o of fnOpts) {
-    const id = mapFunctionKeyword(`${o.code} ${o.name} ${o.description ?? ""}`);
-    if (id) found.add(id);
+    const optText = `${o.code} ${o.name} ${o.description ?? ""}`;
+    const id = mapFunctionKeyword(optText);
+    if (id) {
+      found.add(id);
+      // "Keyed Entry/Office" and "Entrance/Office" option names: /office/ scans before
+      // /keyed entry|entrance|entry/ and shadows entrance — the option covers both.
+      if (id === "office" && /keyed entry|entrance|entry\b/.test(n(optText))) found.add("entrance");
+    }
   }
   // 2) pattern tokens named function / series literal that encode a function
   const text = n(`${product.name} ${product.description ?? ""}`);
   // 3) name/description keywords for single-function products
   for (const [re, id] of FUNCTION_KEYWORDS) {
     if (re.test(text)) { found.add(id); break; } // only the first explicit hit
+  }
+  // "Keyed Entry/Office" / "Entrance/Office" names: the first-hit scan above adds office
+  // (listed before entrance in FUNCTION_KEYWORDS) and shadows entrance. Both functions apply.
+  if (found.has("office") && !found.has("entrance") && /keyed entry|entrance|entry\b/.test(text)) {
+    found.add("entrance");
   }
   // 4) category fallback
   const cat = deriveCategory(product).id;
@@ -314,6 +326,33 @@ const STYLE_BUCKET_KEYWORDS: [RegExp, string][] = [
   [/knob|ball|round|oval|egg|crystal|colonial knob/, "knob"],
   [/escutcheon|plate|rose/, "escutcheon"],
 ];
+
+// Lever-form determination (shared by deriveDesignStyle, matchLayman and the Find tab's
+// semanticSearch). A product is lever-form when it is NOT a knob and either:
+//   (a) its own name/series or style options say "lever"/"cylindrical" in a lock category, or
+//   (b) its derived designStyle bucket is a concrete lever silhouette (straight/curved/flat/
+//       standard/lever) in a category where that bucket implies a lever handle.
+// Knob form always wins. Category guards keep description-level "lever" mentions (deadlatch
+// "paddle or lever trim", padlock "dual locking levers", mortise "5-lever mechanism"),
+// exit-device lever-trim options (BEST EX5100, Arrow 4800 — pushbar exits, not lever locks)
+// and non-lock buckets (padlock "standard", trim plates) from becoming levers.
+const LEVER_BUCKET_CATS = new Set(["cylindrical", "mortise", "electronic", "pushbutton", "handleset", "multipoint"]);
+const LEVER_WORD_CATS = new Set([...LEVER_BUCKET_CATS, "deadbolt"]);
+const LEVER_BUCKETS = new Set(["lever", "straight", "curved", "flat", "standard"]);
+
+export function isLeverForm(product: ProductSeries, a?: UusAttributes): boolean {
+  const attrs = a ?? deriveUus(product);
+  const nameText = n(`${product.name} ${product.series}`);
+  const styleOptText = (product.options?.["style"] ?? [])
+    .map(o => n(`${o.name ?? ""} ${o.code ?? ""}`))
+    .join(" ");
+  if (attrs.designStyle.id === "knob" || /\bknob(s)?\b/.test(nameText) || /\bknob(s)?\b/.test(styleOptText)) return false;
+  const cat = attrs.category.id;
+  const leverWord = /\blever(s)?\b/.test(nameText) || /\blever(s)?\b/.test(styleOptText);
+  if ((leverWord || /cylindrical/.test(nameText)) && LEVER_WORD_CATS.has(cat)) return true;
+  if (LEVER_BUCKETS.has(attrs.designStyle.id) && LEVER_BUCKET_CATS.has(cat)) return true;
+  return false;
+}
 
 function deriveDesignStyle(product: ProductSeries): { style: UusValue; name: string } {
   const styleOpts: SeriesOption[] = product.options?.["style"] ?? [];
@@ -340,6 +379,13 @@ function deriveDesignStyle(product: ProductSeries): { style: UusValue; name: str
     }
     const text = n(`${product.name} ${product.description ?? ""}`);
     if (/knob/.test(text)) return { style: { id: "knob", label: UUS_DESIGN_STYLES.knob }, name: "" };
+    // Products whose OWN name/series says "Lever" are lever-form (Cal-Royal "GN00 Lever Lock",
+    // Dexter "J54L Keyed Entry Lever"). Name+series ONLY — description "lever" mentions are
+    // traps (deadlatch "lever trim options", padlock "dual locking levers", mortise
+    // "5-lever mechanism"). Category guard keeps closers/exits/padlocks/trims out.
+    if (/\blever(s)?\b/.test(n(`${product.name} ${product.series}`)) && LEVER_WORD_CATS.has(deriveCategory(product).id)) {
+      return { style: { id: "lever", label: UUS_DESIGN_STYLES.lever }, name: "" };
+    }
     return { style: { id: "none", label: UUS_DESIGN_STYLES.none }, name: "" };
   }
   let bucket: string | null = null;
@@ -719,9 +765,8 @@ export function matchLayman(product: ProductSeries, q: UusLaymanAttributes, a?: 
   }
   if (q.cylinders.size && q.cylinders.has(attrs.cylinderType.id)) matched.push(`Cylinder: ${attrs.cylinderType.label}`);
   if (q.styles.size) {
-    const nameText = n(`${product.name} ${product.series}`);
     if (q.styles.has("knob") && attrs.designStyle.id === "knob") matched.push("Style: Knob");
-    else if (q.styles.has("lever") && attrs.designStyle.id !== "knob" && attrs.designStyle.id !== "none" && /lever|cylindrical/.test(nameText)) matched.push("Style: Lever");
+    else if (q.styles.has("lever") && isLeverForm(product, attrs)) matched.push("Style: Lever");
   }
   if (q.types.size && product.type && q.types.has(product.type)) matched.push(`Type: ${product.type}`);
   if (q.features.size) {
