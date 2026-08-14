@@ -47,6 +47,7 @@ export const UUS_CATEGORIES: Record<string, string> = {
   "accessory": "Accessory",
   "key-machine": "Key Machine",
   "key-blank": "Key Blank",
+  "pushbutton": "Pushbutton Lock",
   "other": "Other",
 };
 
@@ -141,7 +142,8 @@ const CATEGORY_KEYWORDS: [RegExp, string][] = [
   [/deadbolt|deadlock|dead latch|deadlatch/, "deadbolt"],
   [/multipoint|multi-point/, "multipoint"],
   [/maglock|electromagnetic/, "electromagnetic"],
-  [/electric strike|electrified strike|strike/, "electric-strike"],
+  [/electric strike|electrified strike|electricstrike/, "electric-strike"],
+  [/strike/, "strike"],
   [/smart lock|smart padlock|keypad|electronic|bluetooth|zwave|z-wave|wifi|wi-fi|access control|wireless|proximity|card reader|biometric|keyless|push ?button|digital/, "electronic"],
   [/interchangeable core|ic core|cylinder|core\b/, "cylinder-core"],
   [/cabinet|cam lock|cam\b|locker|drawer|switch lock|plunger|wafer|disc tumbler/, "cabinet-lock"],
@@ -154,7 +156,8 @@ const CATEGORY_KEYWORDS: [RegExp, string][] = [
   [/mortise/, "mortise"],
   [/knob|lever|tubular|cylindrical|institutional|detention/, "cylindrical"],
   [/trim|escutcheon|plate|pull|kick|protection|reinforcement|seal|accessory|power supply|module|split finish|thick door|conversion|kit\b|components/, "trim"],
-  [/key machine|key blank|pinning kit|software/, "key-machine"],
+  [/key blank/, "key-blank"],
+  [/key machine|pinning kit|software/, "key-machine"],
 ];
 
 function deriveCategory(product: ProductSeries): UusValue {
@@ -162,6 +165,16 @@ function deriveCategory(product: ProductSeries): UusValue {
   const text = n(`${product.name} ${product.description ?? ""} ${raw}`);
   // honor explicit category field first (normalized)
   const catNorm = n(raw);
+  // Mechanical pushbutton / mechanical keyless locks are NOT electronic — they are pushbutton locks.
+  // (Owner strict rule: only literal "electronic"/"smart" etc. signals imply electronic; "mechanical
+  // pushbutton"/"mechanical keyless" are purely mechanical, no electronics.) Stronger form signals
+  // (exit-device, deadbolt) still win per the materialized dictionary scan order.
+  const mechKeyless = (/mechanical (push ?button|keyless)/.test(catNorm) || /mechanical (push ?button|keyless)/.test(text)) && !/electronic/.test(catNorm);
+  if (mechKeyless) {
+    if (/exit device|panic|rim exit|fire exit|exit\b/.test(text)) return { id: "exit-device", label: UUS_CATEGORIES["exit-device"] };
+    if (/dead ?bolt|dead ?lock|hook bolt/.test(text)) return { id: "deadbolt", label: UUS_CATEGORIES.deadbolt };
+    return { id: "pushbutton", label: UUS_CATEGORIES.pushbutton };
+  }
   for (const [re, id] of CATEGORY_KEYWORDS) {
     if (re.test(catNorm)) return { id, label: UUS_CATEGORIES[id] };
   }
@@ -180,10 +193,14 @@ function deriveGrade(product: ProductSeries): UusValue {
   if (g.includes("grade 3") || g === "3") return { id: "3", label: UUS_GRADES["3"] };
   if (g.includes("residential")) return { id: "residential", label: UUS_GRADES.residential };
   const text = n(`${product.name} ${product.description ?? ""}`);
-  if (/grade 1|heavy duty|premium|ansi\/bhma grade 1/.test(text)) return { id: "1", label: UUS_GRADES["1"] };
-  if (/grade 2|economy|value|light commercial|standard duty/.test(text)) return { id: "2", label: UUS_GRADES["2"] };
+  // STRICT file-semantics (owner rule, 2026-08-12): only LITERAL "Grade N" statements imply a grade —
+  // "heavy duty"/"premium"/"economy" wording does NOT (e.g. Kwikset "Security"/"Signature" tiers,
+  // Schlage "F-Series (Premium)", Baldwin "Estate" are residential lines, not ANSI Grade 1).
+  if (/grade 1|ansi\/bhma grade 1/.test(text)) return { id: "1", label: UUS_GRADES["1"] };
+  if (/grade 2/.test(text)) return { id: "2", label: UUS_GRADES["2"] };
   if (/grade 3/.test(text)) return { id: "3", label: UUS_GRADES["3"] };
-  if (/residential/.test(text) || product.type === "residential") return { id: "residential", label: UUS_GRADES.residential };
+  // unambiguous in-file residential signals: the boolean flag, the type field, or the word itself
+  if (product.residential === true || product.type === "residential" || /residential/.test(text)) return { id: "residential", label: UUS_GRADES.residential };
   return { id: "", label: "Unknown" };
 }
 
@@ -220,7 +237,8 @@ const FUNCTION_KEYWORDS: [RegExp, string][] = [
   [/coordinator/, "coordinator"],
   [/strike/, "strike"],
   [/trim|escutcheon|plate|pull/, "trim"],
-  [/key machine|key blank/, "key-machine"],
+  [/key blank/, "key-blank"],
+  [/key machine|pinning kit|software/, "key-machine"],
 ];
 
 const CATEGORY_TO_FUNCTION: Record<string, string> = {
@@ -246,6 +264,7 @@ const CATEGORY_TO_FUNCTION: Record<string, string> = {
   "trim": "trim",
   "key-machine": "key-machine",
   "key-blank": "key-blank",
+  "pushbutton": "lock",
 };
 
 const FUNCTION_CANONICAL_ORDER = [
@@ -299,6 +318,26 @@ const STYLE_BUCKET_KEYWORDS: [RegExp, string][] = [
 function deriveDesignStyle(product: ProductSeries): { style: UusValue; name: string } {
   const styleOpts: SeriesOption[] = product.options?.["style"] ?? [];
   if (styleOpts.length === 0) {
+    // In-file form language on trim/lever options (e.g. "classic curved escutcheon",
+    // "Standard curved lever", "Sierra Rose trim plate", "Full Escutcheon"). Order matters:
+    // concrete form words beat generic style words (classic/traditional/contemporary).
+    const TRIM_LEVER_FORM: [RegExp, string][] = [
+      [/curved|curve|contour|crescent/, "curved"],
+      [/straight|sierra/, "straight"],
+      [/flat|broadway/, "flat"],
+      [/escutcheon/, "escutcheon"],
+      [/square/, "flat"],
+      [/knob/, "knob"],
+    ];
+    for (const key of ["trim", "lever", "design"]) {
+      for (const o of product.options?.[key] ?? []) {
+        if (!o) continue;
+        const optText = n(`${o.name ?? ""} ${o.code ?? ""} ${o.description ?? ""}`);
+        for (const [re, id] of TRIM_LEVER_FORM) {
+          if (re.test(optText)) return { style: { id, label: UUS_DESIGN_STYLES[id] }, name: "" };
+        }
+      }
+    }
     const text = n(`${product.name} ${product.description ?? ""}`);
     if (/knob/.test(text)) return { style: { id: "knob", label: UUS_DESIGN_STYLES.knob }, name: "" };
     return { style: { id: "none", label: UUS_DESIGN_STYLES.none }, name: "" };
@@ -321,16 +360,42 @@ function deriveDesignStyle(product: ProductSeries): { style: UusValue; name: str
 
 // ─────────────────────────────── Sizing / power derivation ───────────────────────────────
 
-const SIZING_KEYS = ["backset", "latch", "size", "voltage", "force", "width", "length", "height", "doorHeight", "thickDoor", "keysize", "sizes", "pins", "doorThickness", "arm", "cover", "valve", "delay", "fastener"];
+const SIZING_KEYS = ["backset", "backsetCode", "latch", "size", "sizes", "voltage", "power", "wiring", "electrified", "force", "width", "length", "height", "doorHeight", "thickDoor", "doorThickness", "rail", "coreSize", "bolt", "keysize", "pins", "arm", "cover", "mount", "mounting", "valve", "delay", "fastener", "faceplate", "amps", "powerSupply", "shackleHeight", "thickness", "glassThickness", "cylinderSize", "coreHousing", "widthHeight"];
 const SIZING_LABELS: Record<string, string> = {
-  backset: "backset", latch: "latch", size: "size", voltage: "voltage", force: "force",
-  width: "width", length: "length", height: "height", doorHeight: "door height",
-  thickDoor: "thick door", keysize: "key size", sizes: "size", pins: "pins", doorThickness: "thick door",
-  arm: "arm", cover: "cover", valve: "valve", delay: "delay", fastener: "fastener",
+  backset: "backset", backsetCode: "backset", latch: "latch", size: "size", voltage: "voltage", power: "power",
+  wiring: "wiring", electrified: "electrified", force: "force", width: "width", length: "length", height: "height",
+  doorHeight: "door height", thickDoor: "thick door", doorThickness: "thick door", rail: "rail", coreSize: "core size",
+  bolt: "bolt", keysize: "key size", sizes: "size", pins: "pins", arm: "arm", cover: "cover", mount: "mounting",
+  mounting: "mounting", valve: "valve", delay: "delay", fastener: "fastener", faceplate: "faceplate",
+  amps: "power supply", powerSupply: "power supply", shackleHeight: "shackle height", thickness: "thickness",
+  glassThickness: "glass", cylinderSize: "cylinder size", coreHousing: "housing", widthHeight: "door size",
 };
 
 function deriveSizing(product: ProductSeries): string[] {
   const out: string[] = [];
+  const cleanVal = (o: SeriesOption, label: string): string => {
+    // Prefer the description when the name is just a code repetition ("BAT — BAT — Battery" / "6 — 6 — 6-pin").
+    const nm = (o.name ?? "").replace(/\s+/g, " ").trim();
+    const desc = (o.description ?? "").replace(/\s+/g, " ").trim();
+    let val = nm;
+    // strip a leading "<code> — " repetition when the name begins with the code
+    const code = o.code ?? "";
+    if (code) {
+      const esc = code.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const codeDash = new RegExp("^" + esc + "\\s*—\\s*", "i");
+      let prev = "";
+      while (val !== prev && codeDash.test(val)) { prev = val; val = val.replace(codeDash, "").trim(); }
+    }
+    // if the name collapses to nothing/just the code, fall back to the description
+    if (!val || val.toLowerCase() === (code ?? "").toLowerCase()) {
+      val = desc && !/none|n\/a|not spec/i.test(desc) ? desc : "";
+    }
+    // avoid redundant label repeats ("... Backset backset" → "... Backset")
+    const escL = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const labelRe = new RegExp("\\b" + escL + "\\b", "i");
+    if (labelRe.test(val)) return val;
+    return val ? val + " " + label : "";
+  };
   for (const key of SIZING_KEYS) {
     const opts: SeriesOption[] = product.options?.[key] ?? [];
     for (const o of opts) {
@@ -339,14 +404,11 @@ function deriveSizing(product: ProductSeries): string[] {
       const nm = o.name ?? "";
       if (!code && !nm) continue;
       const label = SIZING_LABELS[key] ?? key;
-      // prefer the cleanest representation: name without redundant label repeats
-      let val = nm.replace(/\s+/g, " ").trim();
-      if (!val || val === code) val = code;
-      const text = n(`${code} ${val}`);
+      const text = n(`${code} ${nm} ${o.description ?? ""}`);
       // skip pure placeholder/empty entries
-      if (code === "" || /none|n\/a|not spec|--/.test(text)) continue;
-      const phrase = `${val} ${label}`;
-      if (!out.some(x => x === phrase)) out.push(phrase);
+      if (/none|n\/a|not spec|^--$|^-$/.test(text) && !code && !nm) continue;
+      const phrase = cleanVal(o, label);
+      if (phrase && !out.some(x => x === phrase)) out.push(phrase);
     }
   }
   // pin counts from availablePins
@@ -380,7 +442,8 @@ const FINISH_FAMILY_NAME: [RegExp, string][] = [
   [/stainless/, "stainless"],
   [/black/, "black"],
   [/gold/, "gold"],
-  [/aluminum/, "aluminum"],
+  [/aluminum|anodized/, "aluminum"],
+  [/steel/, "steel"],
   [/white/, "white"],
   [/brown/, "brown"],
   [/copper/, "copper"],
@@ -402,7 +465,7 @@ export function finishFamilyFromOption(o: SeriesOption | null | undefined): UusV
   if (!fam) return null;
   const labels: Record<string, string> = {
     brass: "Brass", bronze: "Bronze", chrome: "Chrome", stainless: "Stainless Steel",
-    nickel: "Nickel", black: "Black", gold: "Gold", aluminum: "Aluminum", white: "White",
+    nickel: "Nickel", black: "Black", gold: "Gold", aluminum: "Aluminum", steel: "Steel", white: "White",
     brown: "Brown", copper: "Copper",
   };
   return { id: fam, label: labels[fam] ?? fam };
@@ -422,10 +485,10 @@ function deriveFinishFamilies(product: ProductSeries): UusValue[] {
       if (re.test(text)) { families.add(id); break; }
     }
   }
-  const order = ["brass", "bronze", "chrome", "stainless", "nickel", "black", "gold", "aluminum", "white", "brown", "copper"];
+  const order = ["brass", "bronze", "chrome", "stainless", "nickel", "black", "gold", "aluminum", "steel", "white", "brown", "copper"];
   const labels: Record<string, string> = {
     brass: "Brass", bronze: "Bronze", chrome: "Chrome", stainless: "Stainless Steel",
-    nickel: "Nickel", black: "Black", gold: "Gold", aluminum: "Aluminum", white: "White",
+    nickel: "Nickel", black: "Black", gold: "Gold", aluminum: "Aluminum", steel: "Steel", white: "White",
     brown: "Brown", copper: "Copper",
   };
   return [...families].sort((a, b) => order.indexOf(a) - order.indexOf(b)).map(id => ({ id, label: labels[id] ?? id }));
@@ -441,6 +504,15 @@ function deriveCylinderType(product: ProductSeries): UusValue {
     for (const o of product.options?.[key] ?? []) optsText.push(n(`${o.code} ${o.name} ${o.description ?? ""}`));
   }
   const all = [text, ...optsText].join(" ");
+  // Mechanical pushbutton / mechanical keyless locks have NO electronics — no electronic cylinder.
+  // (Owner strict rule: only literal electronic signals imply electronic; these are purely mechanical.)
+  // Key-override variants carry a conventional key cylinder (Simplex 1021, Lockey 2200KO).
+  if (/mechanical (push ?button|keyless)/.test(all) && !/electronic/.test(all)) {
+    if (/\bkey override\b|keyed override|keyed entry|keyed entrance|with key\b/.test(all)) {
+      return { id: "conventional", label: UUS_CYLINDER_TYPES.conventional };
+    }
+    return { id: "none", label: UUS_CYLINDER_TYPES.none };
+  }
   // electronic/smart first — no mechanical cylinder
   if (/smart|keypad|bluetooth|zwave|wifi|electronic lock|access control|keyless|proximity|card reader|biometric|pushbutton|mechanical keyless/.test(all)) {
     return { id: "electronic", label: UUS_CYLINDER_TYPES.electronic };
@@ -450,7 +522,9 @@ function deriveCylinderType(product: ProductSeries): UusValue {
   const strongSfic = /\bsfic\b|small format/.test(all);
   const strongLfic = /\blfic\b|large format|\bsic\b|-sic\b/.test(all);
   if (strongLfic && !strongSfic) return { id: "lf-ic", label: UUS_CYLINDER_TYPES["lf-ic"] };
-  if (/\bsfic\b|small format|interchangeable core\b|\bic\b|-ic\b| core\b/.test(all)) return { id: "sf-ic", label: UUS_CYLINDER_TYPES["sf-ic"] };
+  // SFIC needs an EXPLICIT signal — bare "core" (deadbolt core / removable core / rekeyable cylinder core)
+  // does NOT imply SFIC (Baldwin "single cylinder deadbolt core", master-lock "removable core", sargent "conventional").
+  if (/\bsfic\b|small format|interchangeable core\b|\bic\b|-ic\b|accepts all best cores|best core housing/.test(all)) return { id: "sf-ic", label: UUS_CYLINDER_TYPES["sf-ic"] };
   if (strongLfic) return { id: "lf-ic", label: UUS_CYLINDER_TYPES["lf-ic"] };
   if (/\bkil\b|keyed.?removable/.test(all)) return { id: "keyed-removable", label: UUS_CYLINDER_TYPES["keyed-removable"] };
   if (/\bcs\b|schlage c|conventional|fixed keyway|standard cylinder|6-pin solid/.test(all)) return { id: "conventional", label: UUS_CYLINDER_TYPES.conventional };
