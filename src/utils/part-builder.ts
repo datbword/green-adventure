@@ -4,6 +4,8 @@ import type { Selection, ProductSeries, SeriesOption } from "~/types";
  * Human-readable labels for option keys.
  */
 const FIELD_LABELS: Record<string, string> = {
+  prefix: "Prefix & Electrification",
+  widthHeight: "Door Width & Height",
   function: "Function",
   style: "Style",
   grade: "Grade",
@@ -11,6 +13,16 @@ const FIELD_LABELS: Record<string, string> = {
   keyway: "Keyway",
   handing: "Handing",
   backset: "Backset",
+  backsetCode: "Backset",
+  cylinder: "Cylinder",
+  cylinderTech: "Cylinder Technology",
+  latch: "Latch",
+  corePrep: "Core Prep",
+  finishCode: "Finish",
+  thickKit: "Thick Door Kit",
+  keyingTag: "Keying",
+  cylinderSize: "Cylinder Size",
+  formatCode: "Format",
   design: "Design",
   force: "Force",
   gradeCode: "Grade",
@@ -25,15 +37,31 @@ const FIELD_LABELS: Record<string, string> = {
   trim: "Trim",
   type: "Type",
   voltage: "Voltage",
+  delay: "Delay",
+  arm: "Arm",
+  cover: "Cover",
+  fastener: "Fastener",
+  suffix: "Suffix",
+  coreType: "Core Type",
+  coreSize: "Core Size",
+  level: "Level",
+  combinatingCode: "Combinating Code",
+  coreHousing: "Core Housing",
+  shackleHeight: "Shackle Height",
+  chain: "Chain",
+  stamp: "Stamp",
 };
 
 /**
  * Logical display order for option fields.
  */
 const FIELD_ORDER: string[] = [
-  "function", "style", "grade", "gradeCode", "finish", "keyway",
-  "handing", "backset", "design", "product", "productCode", "model",
-  "type", "trim", "size", "force", "keysize", "voltage", "series",
+  "prefix", "function", "trim", "style", "grade", "gradeCode", "delay", "arm", "cover", "fastener",
+  "coreType", "coreSize", "level", "combinatingCode", "coreHousing", "shackleHeight", "chain", "stamp",
+  "finish", "suffix", "keyway",
+  "widthHeight",
+  "handing", "backset", "latch", "backsetCode", "cylinderTech", "finishCode", "corePrep", "cylinder", "cylinderSize", "formatCode", "keyingTag", "design", "product", "productCode", "model",
+  "type", "size", "doorHeight", "force", "keysize", "voltage", "series",
   "options", "tool",
 ];
 
@@ -88,6 +116,11 @@ export function buildPartNumber(
       result = result.replace(new RegExp(`\\{${key}\\}`, "g"), code);
     }
   }
+
+  // Strip any remaining {placeholders}. A selected option with an empty code
+  // (e.g. "No Options") is not added to `codes`, so its placeholder would
+  // otherwise leak into the built part number — it must render as nothing.
+  result = result.replace(/\{[^}]+\}/g, "");
 
   return result;
 }
@@ -147,13 +180,43 @@ export function findCrossReferences(
 
 /**
  * Get the fields that should be rendered for this series.
- * Returns ALL option keys from the series, in a logical display order.
+ * Only returns option keys that actually appear in the part number pattern —
+ * users shouldn't see dropdowns for fields that don't affect the part number.
+ * Falls back to all keys if the pattern has no placeholders.
  */
 export function getActiveFields(series: ProductSeries): string[] {
-  const keys = Object.keys(series.options || {});
-  // Sort by logical order
-  keys.sort((a, b) => getFieldOrder(a) - getFieldOrder(b));
-  return keys;
+  const allKeys = Object.keys(series.options || {});
+
+  // Extract placeholder names from the pattern: {function}, {finish}, {finishCode}, etc.
+  // Match the FULL placeholder name — {finishCode} must map to the option key
+  // "finishCode", not to "finish". Capturing the full name keeps Code-suffixed
+  // fields (finishCode, backsetCode, formatCode, keyingTag, cylinderSize...) visible.
+  const pattern = series.partNumberPattern || "";
+  const placeholderRegex = /\{(\w+)\}/g;
+  const patternFields = new Set<string>();
+  let match;
+  while ((match = placeholderRegex.exec(pattern)) !== null) {
+    patternFields.add(match[1]);
+    // Reset lastIndex since we're reusing the regex
+    if (match.index === placeholderRegex.lastIndex) placeholderRegex.lastIndex++;
+  }
+
+  // If the pattern references fields, only show those fields
+  if (patternFields.size > 0) {
+    const keys = allKeys.filter((k) => {
+      if (patternFields.has(k)) return true;
+      // Safety net: pattern may reference the Code-stripped form ({finish}) while
+      // the option key is Code-suffixed (finishCode) or vice versa.
+      return patternFields.has(k.replace(/Code$/, "")) || patternFields.has(`${k}Code`);
+    });
+    // Sort by logical order
+    keys.sort((a, b) => getFieldOrder(a) - getFieldOrder(b));
+    return keys;
+  }
+
+  // No pattern placeholders — show all fields as a fallback
+  allKeys.sort((a, b) => getFieldOrder(a) - getFieldOrder(b));
+  return allKeys;
 }
 
 /**

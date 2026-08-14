@@ -35,6 +35,10 @@ interface SearchableSelectProps {
   displayKey?: string;
   /** If true, shows code in the selected value display */
   showCode?: boolean;
+  /** If true and no value selected, highlights the field to indicate it needs attention */
+  highlightEmpty?: boolean;
+  /** Optional element to render next to the label (e.g. help button) */
+  labelExtra?: React.ReactNode;
 }
 
 export function SearchableSelect({
@@ -46,6 +50,8 @@ export function SearchableSelect({
   disabled = false,
   displayKey = "name",
   showCode = true,
+  highlightEmpty = false,
+  labelExtra,
 }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -117,7 +123,10 @@ export function SearchableSelect({
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       const target = e.target as Node;
-      if (inputRef.current && !inputRef.current.parentElement?.contains(target)) {
+      // Don't close if the click is inside the input wrapper OR the dropdown list
+      const insideInput = inputRef.current?.parentElement?.contains(target);
+      const insideList = listRef.current?.contains(target);
+      if (!insideInput && !insideList) {
         setIsOpen(false);
       }
     };
@@ -133,44 +142,84 @@ export function SearchableSelect({
     : "";
 
   return (
-    <div className="searchable-select">
-      <label className="label-text">{label}</label>
-      <input
-        ref={inputRef}
-        type="text"
-        disabled={disabled}
-        placeholder={value ? displayValue : placeholder}
-        title={value?.description ? `${value.name} — ${value.description}${value.backsetType ? ` (${value.backsetType})` : ""}` : undefined}
-        value={isOpen ? search : ""}
-        onChange={(e) => {
-          setSearch(e.target.value);
-          setIsOpen(true);
-        }}
-        onFocus={() => {
-          setIsOpen(true);
-          setSearch("");
-        }}
-        onKeyDown={handleKeyDown}
-        aria-expanded={isOpen}
-        aria-haspopup="listbox"
-        role="combobox"
-        style={{
-          opacity: disabled ? 0.5 : 1,
-          cursor: disabled ? "not-allowed" : "text",
-        }}
-      />
-      <svg
-        className="pointer-events-none absolute right-3 top-[calc(1.5rem+10px)] h-4 w-4 transition-transform"
-        style={{
-          color: "var(--text-muted)",
-          transform: isOpen ? "rotate(180deg)" : undefined,
-        }}
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-      </svg>
+    <div className={`searchable-select${highlightEmpty && !value ? " is-empty-required" : ""}`}>
+      <label className="label-text">
+        {label}
+        {labelExtra}
+      </label>
+      <div style={{ position: "relative" }}>
+        <input
+          ref={inputRef}
+          type="text"
+          disabled={disabled}
+          placeholder={value ? displayValue : placeholder}
+          title={value?.description ? `${value.name} — ${value.description}${value.backsetType ? ` (${value.backsetType})` : ""}` : undefined}
+          value={isOpen ? search : ""}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setIsOpen(true);
+          }}
+          onFocus={() => {
+            setIsOpen(true);
+            setSearch("");
+          }}
+          onKeyDown={handleKeyDown}
+          aria-expanded={isOpen}
+          aria-haspopup="listbox"
+          role="combobox"
+          style={{
+            opacity: disabled ? 0.5 : 1,
+            cursor: disabled ? "not-allowed" : "text",
+          }}
+        />
+        {/* Clear button — appears when a value is selected and dropdown is closed */}
+        {value && !isOpen && !disabled && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onChange(null);
+              setSearch("");
+            }}
+            aria-label="Clear selection"
+            title="Clear selection"
+            style={{
+              position: "absolute",
+              right: "36px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              background: "color-mix(in srgb, var(--text-muted) 12%, transparent)",
+              border: "none",
+              borderRadius: "50%",
+              width: "22px",
+              height: "22px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              color: "var(--text-muted)",
+              fontSize: "14px",
+              lineHeight: 1,
+              padding: 0,
+              minHeight: "22px",
+            }}
+          >
+            ×
+          </button>
+        )}
+        <svg
+          className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-transform"
+          style={{
+            color: "var(--text-muted)",
+            transform: isOpen ? "rotate(180deg)" : undefined,
+          }}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </div>
       {value?.description && !isOpen && (
         <p className="mt-1 text-xs" style={{ color: "var(--text-muted)", paddingLeft: "2px" }}>
           {value.description}

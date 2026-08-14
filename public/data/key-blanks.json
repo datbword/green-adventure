@@ -1,0 +1,3205 @@
+{
+  "meta": {
+    "description": "Key blank cross-reference — Axxess/Axxess+ (Hillman) to ILCO/EZ",
+    "lastUpdated": "2026-07-31",
+    "totalBlanks": 107,
+    "categoryCounts": {
+      "Residential": 21,
+      "Padlock": 12,
+      "Automotive": 51,
+      "Cabinet": 9,
+      "Commercial": 14
+    }
+  },
+  "blanks": [
+    {
+      "axxessNumber": "1",
+      "ilcoNumber": "KW1",
+      "fits": "Fits: Kwikset 5-Pin",
+      "category": "Residential",
+      "keyway": "KW",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "1R",
+      "ilcoNumber": "KW10",
+      "fits": "Fits: Kwikset Reverse",
+      "category": "Residential",
+      "keyway": "KW",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "2",
+      "ilcoNumber": "1528",
+      "fits": "Fits: Emco",
+      "category": "Residential",
+      "keyway": "EM",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "3",
+      "ilcoNumber": "1528R",
+      "fits": "Fits: Emco Reverse",
+      "category": "Residential",
+      "keyway": "EM",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "4",
+      "ilcoNumber": "M1",
+      "fits": "Fits: Master Padlock 4-Pin",
+      "category": "Padlock",
+      "keyway": "M",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "5",
+      "ilcoNumber": "BR2",
+      "fits": "Fits: Brink's Padlock",
+      "category": "Padlock",
+      "keyway": "BR",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "6",
+      "ilcoNumber": "M2",
+      "fits": "Fits: Master Padlock Long",
+      "category": "Padlock",
+      "keyway": "M",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "7",
+      "ilcoNumber": "M11",
+      "fits": "Fits: Master Padlock Small",
+      "category": "Padlock",
+      "keyway": "M",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "7R",
+      "ilcoNumber": "1092M",
+      "fits": "Fits: Master Padlock Small Reverse",
+      "category": "Padlock",
+      "keyway": "M",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "8",
+      "ilcoNumber": "AM3",
+      "fits": "Fits: American Padlock",
+      "category": "Padlock",
+      "keyway": "AM",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "9",
+      "ilcoNumber": "S3",
+      "fits": "Fits: Schlage Wafer Lock",
+      "category": "Residential",
+      "keyway": "S",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "10",
+      "ilcoNumber": "B44",
+      "fits": "Fits: GM Classic A-Groove",
+      "category": "Automotive",
+      "keyway": "B",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "11",
+      "ilcoNumber": "B45",
+      "fits": "Fits: GM Classic B-Groove",
+      "category": "Automotive",
+      "keyway": "B",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "12",
+      "ilcoNumber": "B48",
+      "fits": "Fits: GM Classic C-Groove",
+      "category": "Automotive",
+      "keyway": "B",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "13",
+      "ilcoNumber": "B49",
+      "fits": "Fits: GM Classic D-Groove",
+      "category": "Automotive",
+      "keyway": "B",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "14",
+      "ilcoNumber": "NA14",
+      "fits": "Fits: National Cabinet/Mailbox",
+      "category": "Cabinet",
+      "keyway": "NA",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "15",
+      "ilcoNumber": "CG1",
+      "fits": "Fits: Chicago Cabinet/Cam Lock",
+      "category": "Cabinet",
+      "keyway": "CG",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "16",
+      "ilcoNumber": "H51",
+      "fits": "Fits: Ford 10-Cut Primary",
+      "category": "Automotive",
+      "keyway": "H",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "17",
+      "ilcoNumber": "H50",
+      "fits": "Fits: Ford 10-Cut Secondary/Trunk",
+      "category": "Automotive",
+      "keyway": "H",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "18",
+      "ilcoNumber": "H60",
+      "fits": "Fits: Ford 8-Cut Single Sided",
+      "category": "Automotive",
+      "keyway": "H",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "19",
+      "ilcoNumber": "IN8",
+      "fits": "Fits: International",
+      "category": "Commercial",
+      "keyway": "IN",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "19R2",
+      "ilcoNumber": "TOY40",
+      "fits": "Fits: Toyota Left-Hand Profile",
+      "category": "Automotive",
+      "keyway": "TOY",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "20",
+      "ilcoNumber": "CO106",
+      "fits": "Fits: Corbin / Russwin",
+      "category": "Commercial",
+      "keyway": "CO",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "21",
+      "ilcoNumber": "RU4",
+      "fits": "Fits: Russwin 5-Pin",
+      "category": "Commercial",
+      "keyway": "RU",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "22",
+      "ilcoNumber": "B46",
+      "fits": "Fits: GM Classic Outer Groove",
+      "category": "Automotive",
+      "keyway": "B",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "23",
+      "ilcoNumber": "TOY41",
+      "fits": "Fits: Toyota Old Style",
+      "category": "Automotive",
+      "keyway": "TOY",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "24",
+      "ilcoNumber": "TOY43",
+      "fits": "Fits: Toyota Double Sided",
+      "category": "Automotive",
+      "keyway": "TOY",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "25",
+      "ilcoNumber": "TOY40",
+      "fits": "Fits: Toyota Passenger Profile",
+      "category": "Automotive",
+      "keyway": "TOY",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "26",
+      "ilcoNumber": "MIT1",
+      "fits": "Fits: Mitsubishi",
+      "category": "Automotive",
+      "keyway": "MIT",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "27",
+      "ilcoNumber": "NI11",
+      "fits": "Fits: Nissan / Datsun",
+      "category": "Automotive",
+      "keyway": "NI",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "28",
+      "ilcoNumber": "NI12",
+      "fits": "Fits: Nissan / Datsun Double Sided",
+      "category": "Automotive",
+      "keyway": "NI",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "29",
+      "ilcoNumber": "S71R",
+      "fits": "Fits: Subaru",
+      "category": "Automotive",
+      "keyway": "SU",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "30",
+      "ilcoNumber": "HON58R",
+      "fits": "Fits: Honda Old Style",
+      "category": "Automotive",
+      "keyway": "HON",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "31",
+      "ilcoNumber": "HON60",
+      "fits": "Fits: Honda Newer Style",
+      "category": "Automotive",
+      "keyway": "HON",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "32",
+      "ilcoNumber": "MZ14",
+      "fits": "Fits: Mazda",
+      "category": "Automotive",
+      "keyway": "MZ",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "33",
+      "ilcoNumber": "HY1",
+      "fits": "Fits: Hyundai",
+      "category": "Automotive",
+      "keyway": "HY",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "34",
+      "ilcoNumber": "KI1",
+      "fits": "Fits: Kia",
+      "category": "Automotive",
+      "keyway": "KI",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "35",
+      "ilcoNumber": "CH1",
+      "fits": "Fits: Chrysler 6-Pin Domestic",
+      "category": "Automotive",
+      "keyway": "CH",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "36",
+      "ilcoNumber": "Y152",
+      "fits": "Fits: Chrysler Double Sided Primary",
+      "category": "Automotive",
+      "keyway": "Y",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "37",
+      "ilcoNumber": "S22 / SE1",
+      "fits": "Fits: Segals / Segal 5-Pin",
+      "category": "Commercial",
+      "keyway": "SE",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "38",
+      "ilcoNumber": "CO1 / CO106",
+      "fits": "Fits: Corbin Residential",
+      "category": "Residential",
+      "keyway": "CO",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "39",
+      "ilcoNumber": "RU1",
+      "fits": "Fits: Russwin Residential",
+      "category": "Residential",
+      "keyway": "RU",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "40",
+      "ilcoNumber": "AR4",
+      "fits": "Fits: Arrow 6-Pin",
+      "category": "Commercial",
+      "keyway": "AR",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "41",
+      "ilcoNumber": "SC9",
+      "fits": "Fits: Schlage E 6-Pin",
+      "category": "Commercial",
+      "keyway": "SC",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "42",
+      "ilcoNumber": "SC8",
+      "fits": "Fits: Schlage E 5-Pin",
+      "category": "Commercial",
+      "keyway": "SC",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "43",
+      "ilcoNumber": "RO3",
+      "fits": "Fits: Rockford",
+      "category": "Commercial",
+      "keyway": "RO",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "44",
+      "ilcoNumber": "IN1",
+      "fits": "Fits: Illinois Cabinet",
+      "category": "Cabinet",
+      "keyway": "IN",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "45",
+      "ilcoNumber": "CO88",
+      "fits": "Fits: Corbin Block",
+      "category": "Commercial",
+      "keyway": "CO",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "46",
+      "ilcoNumber": "S22",
+      "fits": "Fits: Segal Padlock",
+      "category": "Padlock",
+      "keyway": "SE",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "47",
+      "ilcoNumber": "S22R",
+      "fits": "Fits: Segal Reverse",
+      "category": "Padlock",
+      "keyway": "SE",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "48",
+      "ilcoNumber": "HD74",
+      "fits": "Fits: Harley Davidson Motorcycles",
+      "category": "Automotive",
+      "keyway": "HD",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "49",
+      "ilcoNumber": "HD75",
+      "fits": "Fits: Harley Davidson Reverse",
+      "category": "Automotive",
+      "keyway": "HD",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "50",
+      "ilcoNumber": "B50",
+      "fits": "Fits: GM E-Groove",
+      "category": "Automotive",
+      "keyway": "B",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "51",
+      "ilcoNumber": "B51",
+      "fits": "Fits: GM F-Groove",
+      "category": "Automotive",
+      "keyway": "B",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "52",
+      "ilcoNumber": "B52",
+      "fits": "Fits: GM H-Groove",
+      "category": "Automotive",
+      "keyway": "B",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "53",
+      "ilcoNumber": "B53",
+      "fits": "Fits: GM J-Groove",
+      "category": "Automotive",
+      "keyway": "B",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "54",
+      "ilcoNumber": "B82",
+      "fits": "Fits: GM 10-Cut / VATS Blank",
+      "category": "Automotive",
+      "keyway": "B",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "55",
+      "ilcoNumber": "B81",
+      "fits": "Fits: GM 10-Cut Secondary",
+      "category": "Automotive",
+      "keyway": "B",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "56",
+      "ilcoNumber": "B85",
+      "fits": "Fits: Pontiac / GM Saturn Profile",
+      "category": "Automotive",
+      "keyway": "B",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "57",
+      "ilcoNumber": "B86",
+      "fits": "Fits: Chevy Cavalier / Sunfire 10-Cut",
+      "category": "Automotive",
+      "keyway": "B",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "58",
+      "ilcoNumber": "B89",
+      "fits": "Fits: GM Modern Non-Transponder Z-Keyway",
+      "category": "Automotive",
+      "keyway": "B",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "59",
+      "ilcoNumber": "B91",
+      "fits": "Fits: GM Modern Non-Transponder Secondary",
+      "category": "Automotive",
+      "keyway": "B",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "60",
+      "ilcoNumber": "H67",
+      "fits": "Fits: Ford 8-Cut Double Sided",
+      "category": "Automotive",
+      "keyway": "H",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "61",
+      "ilcoNumber": "H75",
+      "fits": "Fits: Ford 8-Cut Plastic Head Entry",
+      "category": "Automotive",
+      "keyway": "H",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "62",
+      "ilcoNumber": "Y154",
+      "fits": "Fits: Jeep / Eagle Double Sided",
+      "category": "Automotive",
+      "keyway": "Y",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "63",
+      "ilcoNumber": "Y155",
+      "fits": "Fits: Chrysler Double Sided Valet",
+      "category": "Automotive",
+      "keyway": "Y",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "64",
+      "ilcoNumber": "Y157",
+      "fits": "Fits: Dodge / Chrysler Modern Non-Transponder",
+      "category": "Automotive",
+      "keyway": "Y",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "65",
+      "ilcoNumber": "Y159",
+      "fits": "Fits: Jeep Cherokee Profile",
+      "category": "Automotive",
+      "keyway": "Y",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "66",
+      "ilcoNumber": "WR1",
+      "fits": "Fits: Weiser 5-Pin",
+      "category": "Residential",
+      "keyway": "WR",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "67",
+      "ilcoNumber": "WR2",
+      "fits": "Fits: Weiser 6-Pin / Falcon",
+      "category": "Residential",
+      "keyway": "WR",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "68",
+      "ilcoNumber": "SC1",
+      "fits": "Fits: Schlage C 5-Pin",
+      "category": "Residential",
+      "keyway": "SC",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "69",
+      "ilcoNumber": "SC4",
+      "fits": "Fits: Schlage C 6-Pin",
+      "category": "Residential",
+      "keyway": "SC",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "70",
+      "ilcoNumber": "Y1",
+      "fits": "Fits: Yale 8 5-Pin",
+      "category": "Residential",
+      "keyway": "Y",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "71",
+      "ilcoNumber": "Y2",
+      "fits": "Fits: Yale 9 6-Pin",
+      "category": "Residential",
+      "keyway": "Y",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "72",
+      "ilcoNumber": "Y11",
+      "fits": "Fits: Yale Padlock/Small Cylinder",
+      "category": "Padlock",
+      "keyway": "Y",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "73",
+      "ilcoNumber": "Y12",
+      "fits": "Fits: Yale Large Padlock",
+      "category": "Padlock",
+      "keyway": "Y",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "74",
+      "ilcoNumber": "Y13",
+      "fits": "Fits: Yale Extra Large Padlock",
+      "category": "Padlock",
+      "keyway": "Y",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "75",
+      "ilcoNumber": "Y14",
+      "fits": "Fits: Yale Narrow",
+      "category": "Residential",
+      "keyway": "Y",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "76",
+      "ilcoNumber": "RE1",
+      "fits": "Fits: Reading",
+      "category": "Commercial",
+      "keyway": "RE",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "77",
+      "ilcoNumber": "O1",
+      "fits": "Fits: Oasis",
+      "category": "Commercial",
+      "keyway": "O",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "78",
+      "ilcoNumber": "LO1",
+      "fits": "Fits: Lockout",
+      "category": "Commercial",
+      "keyway": "LO",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "79",
+      "ilcoNumber": "AR1",
+      "fits": "Fits: Arrow AR1 5-Pin",
+      "category": "Commercial",
+      "keyway": "AR",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "80",
+      "ilcoNumber": "T7",
+      "fits": "Fits: Small Mailbox / Cam Locks",
+      "category": "Cabinet",
+      "keyway": "TA",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "81",
+      "ilcoNumber": "NA12",
+      "fits": "Fits: National Flat / Cabinet",
+      "category": "Cabinet",
+      "keyway": "NA",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "82",
+      "ilcoNumber": "CG16",
+      "fits": "Fits: Chicago Wafer Lock",
+      "category": "Cabinet",
+      "keyway": "CG",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "83",
+      "ilcoNumber": "T3",
+      "fits": "Fits: Small Cabinet Locks",
+      "category": "Cabinet",
+      "keyway": "TA",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "84",
+      "ilcoNumber": "DE6",
+      "fits": "Fits: Dexter Door",
+      "category": "Residential",
+      "keyway": "DE",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "85",
+      "ilcoNumber": "DE7",
+      "fits": "Fits: Dexter 6-Pin",
+      "category": "Residential",
+      "keyway": "DE",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "86",
+      "ilcoNumber": "WK1",
+      "fits": "Fits: Weslock Old Style",
+      "category": "Residential",
+      "keyway": "WK",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "87",
+      "ilcoNumber": "NI14",
+      "fits": "Fits: Nissan Truck Profile",
+      "category": "Automotive",
+      "keyway": "NI",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "88",
+      "ilcoNumber": "TOY48",
+      "fits": "Fits: Toyota Late 90s Profile",
+      "category": "Automotive",
+      "keyway": "TOY",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "89",
+      "ilcoNumber": "HON66",
+      "fits": "Fits: Honda High Security Track - Non-Transponder Shell",
+      "category": "Automotive",
+      "keyway": "HON",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "90",
+      "ilcoNumber": "MZ31",
+      "fits": "Fits: Mazda Late 90s Profile",
+      "category": "Automotive",
+      "keyway": "MZ",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "91",
+      "ilcoNumber": "MIT6",
+      "fits": "Fits: Mitsubishi Montero / Eclipse",
+      "category": "Automotive",
+      "keyway": "MIT",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "92",
+      "ilcoNumber": "SUB1",
+      "fits": "Fits: Subaru Forester / Legacy",
+      "category": "Automotive",
+      "keyway": "SU",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "93",
+      "ilcoNumber": "HY13",
+      "fits": "Fits: Hyundai Accent / Elantra",
+      "category": "Automotive",
+      "keyway": "HY",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "94",
+      "ilcoNumber": "KI3",
+      "fits": "Fits: Kia Rio / Sportage",
+      "category": "Automotive",
+      "keyway": "KI",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "95",
+      "ilcoNumber": "VW21",
+      "fits": "Fits: Volkswagen Old Style",
+      "category": "Automotive",
+      "keyway": "VW",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "96",
+      "ilcoNumber": "VW38",
+      "fits": "Fits: Volkswagen Modern Non-Transponder Euro-Profile",
+      "category": "Automotive",
+      "keyway": "VW",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "97",
+      "ilcoNumber": "WK2",
+      "fits": "Fits: Weslock New Style",
+      "category": "Residential",
+      "keyway": "WK",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "101",
+      "ilcoNumber": "M10",
+      "fits": "Fits: Master Lock Heavy Entry",
+      "category": "Residential",
+      "keyway": "M",
+      "additionalBrands": [
+        "1092M"
+      ]
+    },
+    {
+      "axxessNumber": "105",
+      "ilcoNumber": "BA1",
+      "fits": "Fits: Baldwin Entry",
+      "category": "Residential",
+      "keyway": "BA",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "106",
+      "ilcoNumber": "SC8",
+      "fits": "Fits: Schlage L Section",
+      "category": "Residential",
+      "keyway": "SC",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "107",
+      "ilcoNumber": "1069L",
+      "fits": "Fits: New Style Mailbox Locks",
+      "category": "Cabinet",
+      "keyway": "",
+      "additionalBrands": [
+        "NA14"
+      ]
+    },
+    {
+      "axxessNumber": "118",
+      "ilcoNumber": "IN1",
+      "fits": "Fits: Illinois Wafer Profile",
+      "category": "Cabinet",
+      "keyway": "IN",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "128",
+      "ilcoNumber": "FA1",
+      "fits": "Fits: Falcon 5-Pin",
+      "category": "Commercial",
+      "keyway": "FA",
+      "additionalBrands": []
+    },
+    {
+      "axxessNumber": "137",
+      "ilcoNumber": "1049M",
+      "fits": "Fits: Small Utility Padlock",
+      "category": "Padlock",
+      "keyway": "",
+      "additionalBrands": []
+    }
+  ],
+  "searchIndex": [
+    {
+      "query": "1",
+      "results": [
+        0
+      ]
+    },
+    {
+      "query": "kw1",
+      "results": [
+        0
+      ]
+    },
+    {
+      "query": "kwikset 5-pin",
+      "results": [
+        0
+      ]
+    },
+    {
+      "query": "residential",
+      "results": [
+        0,
+        1,
+        2,
+        3,
+        10,
+        17,
+        18,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        36,
+        45,
+        46,
+        47,
+        48
+      ]
+    },
+    {
+      "query": "kw",
+      "results": [
+        0,
+        1
+      ]
+    },
+    {
+      "query": "1r",
+      "results": [
+        1
+      ]
+    },
+    {
+      "query": "kw10",
+      "results": [
+        1
+      ]
+    },
+    {
+      "query": "kwikset reverse",
+      "results": [
+        1
+      ]
+    },
+    {
+      "query": "2",
+      "results": [
+        2
+      ]
+    },
+    {
+      "query": "1528",
+      "results": [
+        2
+      ]
+    },
+    {
+      "query": "emco",
+      "results": [
+        2
+      ]
+    },
+    {
+      "query": "em",
+      "results": [
+        2,
+        3
+      ]
+    },
+    {
+      "query": "3",
+      "results": [
+        3
+      ]
+    },
+    {
+      "query": "1528r",
+      "results": [
+        3
+      ]
+    },
+    {
+      "query": "emco reverse",
+      "results": [
+        3
+      ]
+    },
+    {
+      "query": "4",
+      "results": [
+        4
+      ]
+    },
+    {
+      "query": "m1",
+      "results": [
+        4
+      ]
+    },
+    {
+      "query": "master padlock 4-pin",
+      "results": [
+        4
+      ]
+    },
+    {
+      "query": "padlock",
+      "results": [
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        25,
+        26,
+        33,
+        34,
+        35
+      ]
+    },
+    {
+      "query": "m",
+      "results": [
+        4,
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "query": "5",
+      "results": [
+        5
+      ]
+    },
+    {
+      "query": "br2",
+      "results": [
+        5
+      ]
+    },
+    {
+      "query": "brink's padlock",
+      "results": [
+        5
+      ]
+    },
+    {
+      "query": "br",
+      "results": [
+        5
+      ]
+    },
+    {
+      "query": "6",
+      "results": [
+        6
+      ]
+    },
+    {
+      "query": "m2",
+      "results": [
+        6
+      ]
+    },
+    {
+      "query": "master padlock long",
+      "results": [
+        6
+      ]
+    },
+    {
+      "query": "7",
+      "results": [
+        7
+      ]
+    },
+    {
+      "query": "m11",
+      "results": [
+        7
+      ]
+    },
+    {
+      "query": "master padlock small",
+      "results": [
+        7
+      ]
+    },
+    {
+      "query": "7r",
+      "results": [
+        8
+      ]
+    },
+    {
+      "query": "1092m",
+      "results": [
+        8,
+        102
+      ]
+    },
+    {
+      "query": "master padlock small reverse",
+      "results": [
+        8
+      ]
+    },
+    {
+      "query": "8",
+      "results": [
+        9
+      ]
+    },
+    {
+      "query": "am3",
+      "results": [
+        9
+      ]
+    },
+    {
+      "query": "american padlock",
+      "results": [
+        9
+      ]
+    },
+    {
+      "query": "am",
+      "results": [
+        9
+      ]
+    },
+    {
+      "query": "9",
+      "results": [
+        10
+      ]
+    },
+    {
+      "query": "s3",
+      "results": [
+        10
+      ]
+    },
+    {
+      "query": "schlage wafer lock",
+      "results": [
+        10
+      ]
+    },
+    {
+      "query": "s",
+      "results": [
+        10
+      ]
+    },
+    {
+      "query": "14",
+      "results": [
+        11
+      ]
+    },
+    {
+      "query": "na14",
+      "results": [
+        11,
+        105
+      ]
+    },
+    {
+      "query": "national cabinet/mailbox",
+      "results": [
+        11
+      ]
+    },
+    {
+      "query": "cabinet",
+      "results": [
+        11,
+        12,
+        23,
+        41,
+        42,
+        43,
+        44,
+        49
+      ]
+    },
+    {
+      "query": "na",
+      "results": [
+        11,
+        42
+      ]
+    },
+    {
+      "query": "15",
+      "results": [
+        12
+      ]
+    },
+    {
+      "query": "cg1",
+      "results": [
+        12
+      ]
+    },
+    {
+      "query": "chicago cabinet/cam lock",
+      "results": [
+        12
+      ]
+    },
+    {
+      "query": "cg",
+      "results": [
+        12,
+        43
+      ]
+    },
+    {
+      "query": "19",
+      "results": [
+        13
+      ]
+    },
+    {
+      "query": "in8",
+      "results": [
+        13
+      ]
+    },
+    {
+      "query": "international",
+      "results": [
+        13
+      ]
+    },
+    {
+      "query": "commercial",
+      "results": [
+        13,
+        14,
+        15,
+        16,
+        19,
+        20,
+        21,
+        22,
+        24,
+        37,
+        38,
+        39,
+        40,
+        50
+      ]
+    },
+    {
+      "query": "in",
+      "results": [
+        13,
+        23,
+        49
+      ]
+    },
+    {
+      "query": "20",
+      "results": [
+        14
+      ]
+    },
+    {
+      "query": "co106",
+      "results": [
+        14
+      ]
+    },
+    {
+      "query": "corbin / russwin",
+      "results": [
+        14
+      ]
+    },
+    {
+      "query": "co",
+      "results": [
+        14,
+        17,
+        24
+      ]
+    },
+    {
+      "query": "21",
+      "results": [
+        15
+      ]
+    },
+    {
+      "query": "ru4",
+      "results": [
+        15
+      ]
+    },
+    {
+      "query": "russwin 5-pin",
+      "results": [
+        15
+      ]
+    },
+    {
+      "query": "ru",
+      "results": [
+        15,
+        18
+      ]
+    },
+    {
+      "query": "37",
+      "results": [
+        16
+      ]
+    },
+    {
+      "query": "s22 / se1",
+      "results": [
+        16
+      ]
+    },
+    {
+      "query": "segals / segal 5-pin",
+      "results": [
+        16
+      ]
+    },
+    {
+      "query": "se",
+      "results": [
+        16,
+        25,
+        26
+      ]
+    },
+    {
+      "query": "38",
+      "results": [
+        17
+      ]
+    },
+    {
+      "query": "co1 / co106",
+      "results": [
+        17
+      ]
+    },
+    {
+      "query": "corbin residential",
+      "results": [
+        17
+      ]
+    },
+    {
+      "query": "39",
+      "results": [
+        18
+      ]
+    },
+    {
+      "query": "ru1",
+      "results": [
+        18
+      ]
+    },
+    {
+      "query": "russwin residential",
+      "results": [
+        18
+      ]
+    },
+    {
+      "query": "40",
+      "results": [
+        19
+      ]
+    },
+    {
+      "query": "ar4",
+      "results": [
+        19
+      ]
+    },
+    {
+      "query": "arrow 6-pin",
+      "results": [
+        19
+      ]
+    },
+    {
+      "query": "ar",
+      "results": [
+        19,
+        40
+      ]
+    },
+    {
+      "query": "41",
+      "results": [
+        20
+      ]
+    },
+    {
+      "query": "sc9",
+      "results": [
+        20
+      ]
+    },
+    {
+      "query": "schlage e 6-pin",
+      "results": [
+        20
+      ]
+    },
+    {
+      "query": "sc",
+      "results": [
+        20,
+        21,
+        29,
+        30
+      ]
+    },
+    {
+      "query": "42",
+      "results": [
+        21
+      ]
+    },
+    {
+      "query": "sc8",
+      "results": [
+        21,
+        104
+      ]
+    },
+    {
+      "query": "schlage e 5-pin",
+      "results": [
+        21
+      ]
+    },
+    {
+      "query": "43",
+      "results": [
+        22
+      ]
+    },
+    {
+      "query": "ro3",
+      "results": [
+        22
+      ]
+    },
+    {
+      "query": "rockford",
+      "results": [
+        22
+      ]
+    },
+    {
+      "query": "ro",
+      "results": [
+        22
+      ]
+    },
+    {
+      "query": "44",
+      "results": [
+        23
+      ]
+    },
+    {
+      "query": "in1",
+      "results": [
+        23,
+        49
+      ]
+    },
+    {
+      "query": "illinois cabinet",
+      "results": [
+        23
+      ]
+    },
+    {
+      "query": "45",
+      "results": [
+        24
+      ]
+    },
+    {
+      "query": "co88",
+      "results": [
+        24
+      ]
+    },
+    {
+      "query": "corbin block",
+      "results": [
+        24
+      ]
+    },
+    {
+      "query": "46",
+      "results": [
+        25
+      ]
+    },
+    {
+      "query": "s22",
+      "results": [
+        25
+      ]
+    },
+    {
+      "query": "segal padlock",
+      "results": [
+        25
+      ]
+    },
+    {
+      "query": "47",
+      "results": [
+        26
+      ]
+    },
+    {
+      "query": "s22r",
+      "results": [
+        26
+      ]
+    },
+    {
+      "query": "segal reverse",
+      "results": [
+        26
+      ]
+    },
+    {
+      "query": "66",
+      "results": [
+        27
+      ]
+    },
+    {
+      "query": "wr1",
+      "results": [
+        27
+      ]
+    },
+    {
+      "query": "weiser 5-pin",
+      "results": [
+        27
+      ]
+    },
+    {
+      "query": "wr",
+      "results": [
+        27,
+        28
+      ]
+    },
+    {
+      "query": "67",
+      "results": [
+        28
+      ]
+    },
+    {
+      "query": "wr2",
+      "results": [
+        28
+      ]
+    },
+    {
+      "query": "weiser 6-pin / falcon",
+      "results": [
+        28
+      ]
+    },
+    {
+      "query": "68",
+      "results": [
+        29
+      ]
+    },
+    {
+      "query": "sc1",
+      "results": [
+        29
+      ]
+    },
+    {
+      "query": "schlage c 5-pin",
+      "results": [
+        29
+      ]
+    },
+    {
+      "query": "69",
+      "results": [
+        30
+      ]
+    },
+    {
+      "query": "sc4",
+      "results": [
+        30
+      ]
+    },
+    {
+      "query": "schlage c 6-pin",
+      "results": [
+        30
+      ]
+    },
+    {
+      "query": "70",
+      "results": [
+        31
+      ]
+    },
+    {
+      "query": "y1",
+      "results": [
+        31
+      ]
+    },
+    {
+      "query": "yale 8 5-pin",
+      "results": [
+        31
+      ]
+    },
+    {
+      "query": "y",
+      "results": [
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        73,
+        88,
+        89,
+        90,
+        91
+      ]
+    },
+    {
+      "query": "71",
+      "results": [
+        32
+      ]
+    },
+    {
+      "query": "y2",
+      "results": [
+        32
+      ]
+    },
+    {
+      "query": "yale 9 6-pin",
+      "results": [
+        32
+      ]
+    },
+    {
+      "query": "72",
+      "results": [
+        33
+      ]
+    },
+    {
+      "query": "y11",
+      "results": [
+        33
+      ]
+    },
+    {
+      "query": "yale padlock/small cylinder",
+      "results": [
+        33
+      ]
+    },
+    {
+      "query": "73",
+      "results": [
+        34
+      ]
+    },
+    {
+      "query": "y12",
+      "results": [
+        34
+      ]
+    },
+    {
+      "query": "yale large padlock",
+      "results": [
+        34
+      ]
+    },
+    {
+      "query": "74",
+      "results": [
+        35
+      ]
+    },
+    {
+      "query": "y13",
+      "results": [
+        35
+      ]
+    },
+    {
+      "query": "yale extra large padlock",
+      "results": [
+        35
+      ]
+    },
+    {
+      "query": "75",
+      "results": [
+        36
+      ]
+    },
+    {
+      "query": "y14",
+      "results": [
+        36
+      ]
+    },
+    {
+      "query": "yale narrow",
+      "results": [
+        36
+      ]
+    },
+    {
+      "query": "76",
+      "results": [
+        37
+      ]
+    },
+    {
+      "query": "re1",
+      "results": [
+        37
+      ]
+    },
+    {
+      "query": "reading",
+      "results": [
+        37
+      ]
+    },
+    {
+      "query": "re",
+      "results": [
+        37
+      ]
+    },
+    {
+      "query": "77",
+      "results": [
+        38
+      ]
+    },
+    {
+      "query": "o1",
+      "results": [
+        38
+      ]
+    },
+    {
+      "query": "oasis",
+      "results": [
+        38
+      ]
+    },
+    {
+      "query": "o",
+      "results": [
+        38
+      ]
+    },
+    {
+      "query": "78",
+      "results": [
+        39
+      ]
+    },
+    {
+      "query": "lo1",
+      "results": [
+        39
+      ]
+    },
+    {
+      "query": "lockout",
+      "results": [
+        39
+      ]
+    },
+    {
+      "query": "lo",
+      "results": [
+        39
+      ]
+    },
+    {
+      "query": "79",
+      "results": [
+        40
+      ]
+    },
+    {
+      "query": "ar1",
+      "results": [
+        40
+      ]
+    },
+    {
+      "query": "arrow ar1 5-pin",
+      "results": [
+        40
+      ]
+    },
+    {
+      "query": "80",
+      "results": [
+        41
+      ]
+    },
+    {
+      "query": "t7",
+      "results": [
+        41
+      ]
+    },
+    {
+      "query": "small mailbox / cam locks",
+      "results": [
+        41
+      ]
+    },
+    {
+      "query": "ta",
+      "results": [
+        41,
+        44
+      ]
+    },
+    {
+      "query": "81",
+      "results": [
+        42
+      ]
+    },
+    {
+      "query": "na12",
+      "results": [
+        42
+      ]
+    },
+    {
+      "query": "national flat / cabinet",
+      "results": [
+        42
+      ]
+    },
+    {
+      "query": "82",
+      "results": [
+        43
+      ]
+    },
+    {
+      "query": "cg16",
+      "results": [
+        43
+      ]
+    },
+    {
+      "query": "chicago wafer lock",
+      "results": [
+        43
+      ]
+    },
+    {
+      "query": "83",
+      "results": [
+        44
+      ]
+    },
+    {
+      "query": "t3",
+      "results": [
+        44
+      ]
+    },
+    {
+      "query": "small cabinet locks",
+      "results": [
+        44
+      ]
+    },
+    {
+      "query": "84",
+      "results": [
+        45
+      ]
+    },
+    {
+      "query": "de6",
+      "results": [
+        45
+      ]
+    },
+    {
+      "query": "dexter door",
+      "results": [
+        45
+      ]
+    },
+    {
+      "query": "de",
+      "results": [
+        45,
+        46
+      ]
+    },
+    {
+      "query": "85",
+      "results": [
+        46
+      ]
+    },
+    {
+      "query": "de7",
+      "results": [
+        46
+      ]
+    },
+    {
+      "query": "dexter 6-pin",
+      "results": [
+        46
+      ]
+    },
+    {
+      "query": "86",
+      "results": [
+        47
+      ]
+    },
+    {
+      "query": "wk1",
+      "results": [
+        47
+      ]
+    },
+    {
+      "query": "weslock old style",
+      "results": [
+        47
+      ]
+    },
+    {
+      "query": "wk",
+      "results": [
+        47,
+        48
+      ]
+    },
+    {
+      "query": "97",
+      "results": [
+        48
+      ]
+    },
+    {
+      "query": "wk2",
+      "results": [
+        48
+      ]
+    },
+    {
+      "query": "weslock new style",
+      "results": [
+        48
+      ]
+    },
+    {
+      "query": "118",
+      "results": [
+        49
+      ]
+    },
+    {
+      "query": "illinois wafer profile",
+      "results": [
+        49
+      ]
+    },
+    {
+      "query": "128",
+      "results": [
+        50
+      ]
+    },
+    {
+      "query": "fa1",
+      "results": [
+        50
+      ]
+    },
+    {
+      "query": "falcon 5-pin",
+      "results": [
+        50
+      ]
+    },
+    {
+      "query": "fa",
+      "results": [
+        50
+      ]
+    },
+    {
+      "query": "10",
+      "results": [
+        51
+      ]
+    },
+    {
+      "query": "b44",
+      "results": [
+        51
+      ]
+    },
+    {
+      "query": "gm classic a-groove",
+      "results": [
+        51
+      ]
+    },
+    {
+      "query": "automotive",
+      "results": [
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100,
+        101
+      ]
+    },
+    {
+      "query": "b",
+      "results": [
+        51,
+        52,
+        53,
+        54,
+        59,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85
+      ]
+    },
+    {
+      "query": "11",
+      "results": [
+        52
+      ]
+    },
+    {
+      "query": "b45",
+      "results": [
+        52
+      ]
+    },
+    {
+      "query": "gm classic b-groove",
+      "results": [
+        52
+      ]
+    },
+    {
+      "query": "12",
+      "results": [
+        53
+      ]
+    },
+    {
+      "query": "b48",
+      "results": [
+        53
+      ]
+    },
+    {
+      "query": "gm classic c-groove",
+      "results": [
+        53
+      ]
+    },
+    {
+      "query": "13",
+      "results": [
+        54
+      ]
+    },
+    {
+      "query": "b49",
+      "results": [
+        54
+      ]
+    },
+    {
+      "query": "gm classic d-groove",
+      "results": [
+        54
+      ]
+    },
+    {
+      "query": "16",
+      "results": [
+        55
+      ]
+    },
+    {
+      "query": "h51",
+      "results": [
+        55
+      ]
+    },
+    {
+      "query": "ford 10-cut primary",
+      "results": [
+        55
+      ]
+    },
+    {
+      "query": "h",
+      "results": [
+        55,
+        56,
+        57,
+        86,
+        87
+      ]
+    },
+    {
+      "query": "17",
+      "results": [
+        56
+      ]
+    },
+    {
+      "query": "h50",
+      "results": [
+        56
+      ]
+    },
+    {
+      "query": "ford 10-cut secondary/trunk",
+      "results": [
+        56
+      ]
+    },
+    {
+      "query": "18",
+      "results": [
+        57
+      ]
+    },
+    {
+      "query": "h60",
+      "results": [
+        57
+      ]
+    },
+    {
+      "query": "ford 8-cut single sided",
+      "results": [
+        57
+      ]
+    },
+    {
+      "query": "19r2",
+      "results": [
+        58
+      ]
+    },
+    {
+      "query": "toy40",
+      "results": [
+        58,
+        62
+      ]
+    },
+    {
+      "query": "toyota left-hand profile",
+      "results": [
+        58
+      ]
+    },
+    {
+      "query": "toy",
+      "results": [
+        58,
+        60,
+        61,
+        62,
+        93
+      ]
+    },
+    {
+      "query": "22",
+      "results": [
+        59
+      ]
+    },
+    {
+      "query": "b46",
+      "results": [
+        59
+      ]
+    },
+    {
+      "query": "gm classic outer groove",
+      "results": [
+        59
+      ]
+    },
+    {
+      "query": "23",
+      "results": [
+        60
+      ]
+    },
+    {
+      "query": "toy41",
+      "results": [
+        60
+      ]
+    },
+    {
+      "query": "toyota old style",
+      "results": [
+        60
+      ]
+    },
+    {
+      "query": "24",
+      "results": [
+        61
+      ]
+    },
+    {
+      "query": "toy43",
+      "results": [
+        61
+      ]
+    },
+    {
+      "query": "toyota double sided",
+      "results": [
+        61
+      ]
+    },
+    {
+      "query": "25",
+      "results": [
+        62
+      ]
+    },
+    {
+      "query": "toyota passenger profile",
+      "results": [
+        62
+      ]
+    },
+    {
+      "query": "26",
+      "results": [
+        63
+      ]
+    },
+    {
+      "query": "mit1",
+      "results": [
+        63
+      ]
+    },
+    {
+      "query": "mitsubishi",
+      "results": [
+        63
+      ]
+    },
+    {
+      "query": "mit",
+      "results": [
+        63,
+        96
+      ]
+    },
+    {
+      "query": "27",
+      "results": [
+        64
+      ]
+    },
+    {
+      "query": "ni11",
+      "results": [
+        64
+      ]
+    },
+    {
+      "query": "nissan / datsun",
+      "results": [
+        64
+      ]
+    },
+    {
+      "query": "ni",
+      "results": [
+        64,
+        65,
+        92
+      ]
+    },
+    {
+      "query": "28",
+      "results": [
+        65
+      ]
+    },
+    {
+      "query": "ni12",
+      "results": [
+        65
+      ]
+    },
+    {
+      "query": "nissan / datsun double sided",
+      "results": [
+        65
+      ]
+    },
+    {
+      "query": "29",
+      "results": [
+        66
+      ]
+    },
+    {
+      "query": "s71r",
+      "results": [
+        66
+      ]
+    },
+    {
+      "query": "subaru",
+      "results": [
+        66
+      ]
+    },
+    {
+      "query": "su",
+      "results": [
+        66,
+        97
+      ]
+    },
+    {
+      "query": "30",
+      "results": [
+        67
+      ]
+    },
+    {
+      "query": "hon58r",
+      "results": [
+        67
+      ]
+    },
+    {
+      "query": "honda old style",
+      "results": [
+        67
+      ]
+    },
+    {
+      "query": "hon",
+      "results": [
+        67,
+        68,
+        94
+      ]
+    },
+    {
+      "query": "31",
+      "results": [
+        68
+      ]
+    },
+    {
+      "query": "hon60",
+      "results": [
+        68
+      ]
+    },
+    {
+      "query": "honda newer style",
+      "results": [
+        68
+      ]
+    },
+    {
+      "query": "32",
+      "results": [
+        69
+      ]
+    },
+    {
+      "query": "mz14",
+      "results": [
+        69
+      ]
+    },
+    {
+      "query": "mazda",
+      "results": [
+        69
+      ]
+    },
+    {
+      "query": "mz",
+      "results": [
+        69,
+        95
+      ]
+    },
+    {
+      "query": "33",
+      "results": [
+        70
+      ]
+    },
+    {
+      "query": "hy1",
+      "results": [
+        70
+      ]
+    },
+    {
+      "query": "hyundai",
+      "results": [
+        70
+      ]
+    },
+    {
+      "query": "hy",
+      "results": [
+        70,
+        98
+      ]
+    },
+    {
+      "query": "34",
+      "results": [
+        71
+      ]
+    },
+    {
+      "query": "ki1",
+      "results": [
+        71
+      ]
+    },
+    {
+      "query": "kia",
+      "results": [
+        71
+      ]
+    },
+    {
+      "query": "ki",
+      "results": [
+        71,
+        99
+      ]
+    },
+    {
+      "query": "35",
+      "results": [
+        72
+      ]
+    },
+    {
+      "query": "ch1",
+      "results": [
+        72
+      ]
+    },
+    {
+      "query": "chrysler 6-pin domestic",
+      "results": [
+        72
+      ]
+    },
+    {
+      "query": "ch",
+      "results": [
+        72
+      ]
+    },
+    {
+      "query": "36",
+      "results": [
+        73
+      ]
+    },
+    {
+      "query": "y152",
+      "results": [
+        73
+      ]
+    },
+    {
+      "query": "chrysler double sided primary",
+      "results": [
+        73
+      ]
+    },
+    {
+      "query": "48",
+      "results": [
+        74
+      ]
+    },
+    {
+      "query": "hd74",
+      "results": [
+        74
+      ]
+    },
+    {
+      "query": "harley davidson motorcycles",
+      "results": [
+        74
+      ]
+    },
+    {
+      "query": "hd",
+      "results": [
+        74,
+        75
+      ]
+    },
+    {
+      "query": "49",
+      "results": [
+        75
+      ]
+    },
+    {
+      "query": "hd75",
+      "results": [
+        75
+      ]
+    },
+    {
+      "query": "harley davidson reverse",
+      "results": [
+        75
+      ]
+    },
+    {
+      "query": "50",
+      "results": [
+        76
+      ]
+    },
+    {
+      "query": "b50",
+      "results": [
+        76
+      ]
+    },
+    {
+      "query": "gm e-groove",
+      "results": [
+        76
+      ]
+    },
+    {
+      "query": "51",
+      "results": [
+        77
+      ]
+    },
+    {
+      "query": "b51",
+      "results": [
+        77
+      ]
+    },
+    {
+      "query": "gm f-groove",
+      "results": [
+        77
+      ]
+    },
+    {
+      "query": "52",
+      "results": [
+        78
+      ]
+    },
+    {
+      "query": "b52",
+      "results": [
+        78
+      ]
+    },
+    {
+      "query": "gm h-groove",
+      "results": [
+        78
+      ]
+    },
+    {
+      "query": "53",
+      "results": [
+        79
+      ]
+    },
+    {
+      "query": "b53",
+      "results": [
+        79
+      ]
+    },
+    {
+      "query": "gm j-groove",
+      "results": [
+        79
+      ]
+    },
+    {
+      "query": "54",
+      "results": [
+        80
+      ]
+    },
+    {
+      "query": "b82",
+      "results": [
+        80
+      ]
+    },
+    {
+      "query": "gm 10-cut / vats blank",
+      "results": [
+        80
+      ]
+    },
+    {
+      "query": "55",
+      "results": [
+        81
+      ]
+    },
+    {
+      "query": "b81",
+      "results": [
+        81
+      ]
+    },
+    {
+      "query": "gm 10-cut secondary",
+      "results": [
+        81
+      ]
+    },
+    {
+      "query": "56",
+      "results": [
+        82
+      ]
+    },
+    {
+      "query": "b85",
+      "results": [
+        82
+      ]
+    },
+    {
+      "query": "pontiac / gm saturn profile",
+      "results": [
+        82
+      ]
+    },
+    {
+      "query": "57",
+      "results": [
+        83
+      ]
+    },
+    {
+      "query": "b86",
+      "results": [
+        83
+      ]
+    },
+    {
+      "query": "chevy cavalier / sunfire 10-cut",
+      "results": [
+        83
+      ]
+    },
+    {
+      "query": "58",
+      "results": [
+        84
+      ]
+    },
+    {
+      "query": "b89",
+      "results": [
+        84
+      ]
+    },
+    {
+      "query": "gm modern non-transponder z-keyway",
+      "results": [
+        84
+      ]
+    },
+    {
+      "query": "59",
+      "results": [
+        85
+      ]
+    },
+    {
+      "query": "b91",
+      "results": [
+        85
+      ]
+    },
+    {
+      "query": "gm modern non-transponder secondary",
+      "results": [
+        85
+      ]
+    },
+    {
+      "query": "60",
+      "results": [
+        86
+      ]
+    },
+    {
+      "query": "h67",
+      "results": [
+        86
+      ]
+    },
+    {
+      "query": "ford 8-cut double sided",
+      "results": [
+        86
+      ]
+    },
+    {
+      "query": "61",
+      "results": [
+        87
+      ]
+    },
+    {
+      "query": "h75",
+      "results": [
+        87
+      ]
+    },
+    {
+      "query": "ford 8-cut plastic head entry",
+      "results": [
+        87
+      ]
+    },
+    {
+      "query": "62",
+      "results": [
+        88
+      ]
+    },
+    {
+      "query": "y154",
+      "results": [
+        88
+      ]
+    },
+    {
+      "query": "jeep / eagle double sided",
+      "results": [
+        88
+      ]
+    },
+    {
+      "query": "63",
+      "results": [
+        89
+      ]
+    },
+    {
+      "query": "y155",
+      "results": [
+        89
+      ]
+    },
+    {
+      "query": "chrysler double sided valet",
+      "results": [
+        89
+      ]
+    },
+    {
+      "query": "64",
+      "results": [
+        90
+      ]
+    },
+    {
+      "query": "y157",
+      "results": [
+        90
+      ]
+    },
+    {
+      "query": "dodge / chrysler modern non-transponder",
+      "results": [
+        90
+      ]
+    },
+    {
+      "query": "65",
+      "results": [
+        91
+      ]
+    },
+    {
+      "query": "y159",
+      "results": [
+        91
+      ]
+    },
+    {
+      "query": "jeep cherokee profile",
+      "results": [
+        91
+      ]
+    },
+    {
+      "query": "87",
+      "results": [
+        92
+      ]
+    },
+    {
+      "query": "ni14",
+      "results": [
+        92
+      ]
+    },
+    {
+      "query": "nissan truck profile",
+      "results": [
+        92
+      ]
+    },
+    {
+      "query": "88",
+      "results": [
+        93
+      ]
+    },
+    {
+      "query": "toy48",
+      "results": [
+        93
+      ]
+    },
+    {
+      "query": "toyota late 90s profile",
+      "results": [
+        93
+      ]
+    },
+    {
+      "query": "89",
+      "results": [
+        94
+      ]
+    },
+    {
+      "query": "hon66",
+      "results": [
+        94
+      ]
+    },
+    {
+      "query": "honda high security track - non-transponder shell",
+      "results": [
+        94
+      ]
+    },
+    {
+      "query": "90",
+      "results": [
+        95
+      ]
+    },
+    {
+      "query": "mz31",
+      "results": [
+        95
+      ]
+    },
+    {
+      "query": "mazda late 90s profile",
+      "results": [
+        95
+      ]
+    },
+    {
+      "query": "91",
+      "results": [
+        96
+      ]
+    },
+    {
+      "query": "mit6",
+      "results": [
+        96
+      ]
+    },
+    {
+      "query": "mitsubishi montero / eclipse",
+      "results": [
+        96
+      ]
+    },
+    {
+      "query": "92",
+      "results": [
+        97
+      ]
+    },
+    {
+      "query": "sub1",
+      "results": [
+        97
+      ]
+    },
+    {
+      "query": "subaru forester / legacy",
+      "results": [
+        97
+      ]
+    },
+    {
+      "query": "93",
+      "results": [
+        98
+      ]
+    },
+    {
+      "query": "hy13",
+      "results": [
+        98
+      ]
+    },
+    {
+      "query": "hyundai accent / elantra",
+      "results": [
+        98
+      ]
+    },
+    {
+      "query": "94",
+      "results": [
+        99
+      ]
+    },
+    {
+      "query": "ki3",
+      "results": [
+        99
+      ]
+    },
+    {
+      "query": "kia rio / sportage",
+      "results": [
+        99
+      ]
+    },
+    {
+      "query": "95",
+      "results": [
+        100
+      ]
+    },
+    {
+      "query": "vw21",
+      "results": [
+        100
+      ]
+    },
+    {
+      "query": "volkswagen old style",
+      "results": [
+        100
+      ]
+    },
+    {
+      "query": "vw",
+      "results": [
+        100,
+        101
+      ]
+    },
+    {
+      "query": "96",
+      "results": [
+        101
+      ]
+    },
+    {
+      "query": "vw38",
+      "results": [
+        101
+      ]
+    },
+    {
+      "query": "volkswagen modern non-transponder euro-profile",
+      "results": [
+        101
+      ]
+    },
+    {
+      "query": "101",
+      "results": [
+        102
+      ]
+    },
+    {
+      "query": "m10",
+      "results": [
+        102
+      ]
+    },
+    {
+      "query": "master lock heavy entry",
+      "results": [
+        102
+      ]
+    },
+    {
+      "query": "105",
+      "results": [
+        103
+      ]
+    },
+    {
+      "query": "ba1",
+      "results": [
+        103
+      ]
+    },
+    {
+      "query": "baldwin entry",
+      "results": [
+        103
+      ]
+    },
+    {
+      "query": "106",
+      "results": [
+        104
+      ]
+    },
+    {
+      "query": "schlage l section",
+      "results": [
+        104
+      ]
+    },
+    {
+      "query": "107",
+      "results": [
+        105
+      ]
+    },
+    {
+      "query": "1069l",
+      "results": [
+        105
+      ]
+    },
+    {
+      "query": "new style mailbox locks",
+      "results": [
+        105
+      ]
+    },
+    {
+      "query": "137",
+      "results": [
+        106
+      ]
+    },
+    {
+      "query": "1049m",
+      "results": [
+        106
+      ]
+    },
+    {
+      "query": "small utility padlock",
+      "results": [
+        106
+      ]
+    }
+  ]
+}

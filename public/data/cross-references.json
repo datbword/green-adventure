@@ -1,0 +1,75 @@
+{
+  "families": [
+    {
+      "name": "Grade 1 Cylindrical Lever Locks",
+      "products": [
+        { "manufacturer": "Schlage", "partNumber": "ND10S RHO 626", "series": "ND" },
+        { "manufacturer": "Corbin Russwin", "partNumber": "CL3310 NZD 626", "series": "CL3300" },
+        { "manufacturer": "Sargent", "partNumber": "10G05 LL 26D", "series": "10-Line" },
+        { "manufacturer": "Yale", "partNumber": "5400LN 626", "series": "5400LN" }
+      ]
+    },
+    {
+      "name": "Grade 1 Mortise Locks",
+      "products": [
+        { "manufacturer": "Corbin Russwin", "partNumber": "ML2010 NZD 626", "series": "ML2000" },
+        { "manufacturer": "Sargent", "partNumber": "8205 LN 26D", "series": "8200" },
+        { "manufacturer": "Yale", "partNumber": "8805FL 626", "series": "8800" }
+      ]
+    },
+    {
+      "name": "Grade 1 Door Closers",
+      "products": [
+        { "manufacturer": "LCN", "partNumber": "4040XP", "series": "4040XP" },
+        { "manufacturer": "Corbin Russwin", "partNumber": "DC6210", "series": "DC6200" }
+      ]
+    },
+    {
+      "name": "Grade 2 Cylindrical Lever Locks",
+      "products": [
+        { "manufacturer": "Schlage", "partNumber": "ALX10S RHO 626", "series": "AL" },
+        { "manufacturer": "Corbin Russwin", "partNumber": "CLX3310 NZD 626", "series": "CLX3300" },
+        { "manufacturer": "Yale", "partNumber": "4700LN 626", "series": "4700LN" }
+      ]
+    },
+    {
+      "name": "Grade 1 Deadbolts",
+      "products": [
+        { "manufacturer": "Schlage", "partNumber": "B601 626", "series": "B-Series" },
+        { "manufacturer": "Corbin Russwin", "partNumber": "DL3100 626", "series": "DL3100" }
+      ]
+    },
+    {
+      "name": "Residential Deadbolts",
+      "products": [
+        { "manufacturer": "Schlage", "partNumber": "B60 619", "series": "B-Series" },
+        { "manufacturer": "Kwikset", "partNumber": "660 3", "series": "660" },
+        { "manufacturer": "Baldwin", "partNumber": "5021.260", "series": "Estate" }
+      ]
+    },
+    {
+      "name": "Residential Keyed Entry Knobs",
+      "products": [
+        { "manufacturer": "Schlage", "partNumber": "F51A RHO 619", "series": "F-Series" },
+        { "manufacturer": "Kwikset", "partNumber": "740 26D", "series": "740" },
+        { "manufacturer": "Baldwin", "partNumber": "PS403 260", "series": "Reserve" }
+      ]
+    },
+    {
+      "name": "Residential Passage Knobs",
+      "products": [
+        { "manufacturer": "Schlage", "partNumber": "F10 LAT 619", "series": "F-Series" },
+        { "manufacturer": "Kwikset", "partNumber": "720 26D", "series": "720" },
+        { "manufacturer": "Baldwin", "partNumber": "PS101 260", "series": "Reserve" }
+      ]
+    },
+    {
+      "name": "Smart / Electronic Locks",
+      "products": [
+        { "manufacturer": "Schlage", "partNumber": "BE365", "series": "BE365" },
+        { "manufacturer": "Kwikset", "partNumber": "916", "series": "916" },
+        { "manufacturer": "Yale", "partNumber": "YRD256", "series": "nEXT" }
+      ]
+    }
+  ]
+}

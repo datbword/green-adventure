@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useVisualMode } from "~/hooks/useVisualMode";
+
 import { useAuth } from "~/hooks/useAuth";
 import { AuthModal } from "~/components/AuthModal";
 import { UserMenu } from "~/components/UserMenu";
@@ -10,11 +10,9 @@ export const Route = createFileRoute("/handing")({
   component: HandingPage,
 });
 
-const MODE_ICONS: Record<string, string> = { normal: "☀️", dark: "🌙", "high-contrast": "🔲", calm: "🌀" };
-const MODE_LABELS: Record<string, string> = { normal: "Light mode", dark: "Dark mode", "high-contrast": "High contrast", calm: "Calm mode" };
 
 function HandingPage() {
-  const { mode, cycleMode } = useVisualMode();
+
   const { user, showAuth, setShowAuth, clearSession } = useAuth();
   const [selected, setSelected] = useState<HandingInfo>(HANDING_TYPES[0]);
 
@@ -25,7 +23,7 @@ function HandingPage() {
         <div className="flex items-center gap-3">
           <Link to="/" className="flex items-center gap-2 no-underline">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg text-lg font-bold text-white shadow-sm"
-              style={{ backgroundColor: mode === "high-contrast" ? "#000" : mode === "calm" ? "#6B6B6B" : "#1B2A4A" }}>
+              style={{ backgroundColor: mode === "high-contrast" ? "#000000" : mode === "dark" ? "#1F1F1F" : mode === "calm" ? "#6B6B6B" : "#1B2A4A" }}>
               LB
             </div>
             <div>
@@ -62,10 +60,6 @@ function HandingPage() {
               <span className="text-xs font-semibold tracking-widest" style={{ color: "var(--text-secondary)" }}>LOGIN</span>
             </button>
           )}
-          <button className="mode-toggle-btn" onClick={cycleMode} title={MODE_LABELS[mode]}
-            aria-label={`Visual mode: ${MODE_LABELS[mode]}. Click to change.`}>
-            <span className="text-base">{MODE_ICONS[mode]}</span>
-          </button>
         </div>
       </header>
 
