@@ -152,8 +152,15 @@ function flexMatch(
         const captured = input.slice(pos, endPos);
         if (captured.length === 0 && pos < input.length) {
           // Empty capture with more input — this is suspicious but possible
-          // (e.g. placeholder right before anchor with no value)
-          tokens.push({ field: key, code: "", name: "Not specified", unknown: true });
+          // (e.g. placeholder right before anchor with no value). Honor the
+          // field's blank/default option when one exists (e.g. CR ED standard
+          // mechanical prefix "" → "ED5200-08-...-RHR").
+          const blankOpt = availableOpts.find(o => o.code === "" || o.code === undefined);
+          if (blankOpt) {
+            tokens.push({ field: key, code: "", name: blankOpt.name, description: blankOpt.description });
+          } else {
+            tokens.push({ field: key, code: "", name: "Not specified", unknown: true });
+          }
           pos = endPos;
         } else if (captured.length > 0) {
           const found = lookupOption(availableOpts, captured);
@@ -250,12 +257,15 @@ function greedyMatch(input: string, options: SeriesOption[]): string | null {
 }
 
 /**
- * Look up a code in an options array. Case-insensitive.
+ * Look up a code in an options array. Case-insensitive and delimiter-insensitive
+ * (dash/space/slash/underscore stripped on BOTH sides) so codes like "MELR-A-"
+ * (CR ED prefix, trailing dash baked into the code) or "-IC" (Arrow cylinder)
+ * match raw input captures like "MELRA" / "IC".
  */
 function lookupOption(options: SeriesOption[], code: string): SeriesOption | null {
-  const normalized = code.trim().toUpperCase();
+  const normalized = code.trim().toUpperCase().replace(/[\s\-\/\.\_]+/g, "");
   for (const opt of options) {
-    if (opt.code.toUpperCase() === normalized) return opt;
+    if (opt.code.trim().toUpperCase().replace(/[\s\-\/\.\_]+/g, "") === normalized) return opt;
   }
   return null;
 }

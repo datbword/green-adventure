@@ -4,6 +4,8 @@ import type { Selection, ProductSeries, SeriesOption } from "~/types";
  * Human-readable labels for option keys.
  */
 const FIELD_LABELS: Record<string, string> = {
+  prefix: "Prefix & Electrification",
+  widthHeight: "Door Width & Height",
   function: "Function",
   style: "Style",
   grade: "Grade",
@@ -54,9 +56,10 @@ const FIELD_LABELS: Record<string, string> = {
  * Logical display order for option fields.
  */
 const FIELD_ORDER: string[] = [
-  "function", "trim", "style", "grade", "gradeCode", "delay", "arm", "cover", "fastener",
+  "prefix", "function", "trim", "style", "grade", "gradeCode", "delay", "arm", "cover", "fastener",
   "coreType", "coreSize", "level", "combinatingCode", "coreHousing", "shackleHeight", "chain", "stamp",
   "finish", "suffix", "keyway",
+  "widthHeight",
   "handing", "backset", "latch", "backsetCode", "cylinderTech", "finishCode", "corePrep", "cylinder", "cylinderSize", "formatCode", "keyingTag", "design", "product", "productCode", "model",
   "type", "size", "doorHeight", "force", "keysize", "voltage", "series",
   "options", "tool",
