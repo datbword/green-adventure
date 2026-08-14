@@ -1,145 +1,783 @@
 {
   "version": 1,
-  "description": "Layman phrase → UUS attribute tokens (Phase B refined). Target values are ids produced by the RUNTIME deriveUus() in src/utils/uus.ts (canonical source). categories/grades/functions/finishes/cylinders/styles match deriveUus ids; types match product.type; features match tokens inside deriveUus sizing text (arm/cover/valve/delay option names).",
+  "description": "Layman phrase \u2192 UUS attribute tokens (Phase B refined). Target values are ids produced by the RUNTIME deriveUus() in src/utils/uus.ts (canonical source). categories/grades/functions/finishes/cylinders/styles match deriveUus ids; types match product.type; features match tokens inside deriveUus sizing text (arm/cover/valve/delay option names).",
   "phrases": {
-    "heavy duty": { "grades": ["1"] },
-    "extra heavy duty": { "grades": ["1"] },
-    "grade 1": { "grades": ["1"] },
-    "heavy duty grade 1": { "grades": ["1"] },
-    "grade 2": { "grades": ["2"] },
-    "grade 3": { "grades": ["3"] },
-    "school": { "grades": ["1"], "functions": ["classroom", "classroom-security", "storeroom"] },
-    "schools": { "grades": ["1"], "functions": ["classroom", "classroom-security", "storeroom"] },
-    "school lock": { "functions": ["classroom", "classroom-security", "storeroom"] },
-    "classroom": { "functions": ["classroom"] },
-    "class room": { "functions": ["classroom"] },
-    "class room security": { "functions": ["classroom-security"] },
-    "classroom security": { "functions": ["classroom-security"] },
-    "store room": { "functions": ["storeroom"] },
-    "storeroom": { "functions": ["storeroom"] },
-    "store room lock": { "functions": ["storeroom"] },
-    "closet": { "functions": ["storeroom"] },
-    "passage": { "functions": ["passage"] },
-    "pass through": { "functions": ["passage"] },
-    "hall": { "functions": ["passage"] },
-    "hallway": { "functions": ["passage"] },
-    "privacy": { "functions": ["privacy"] },
-    "bathroom": { "functions": ["privacy"] },
-    "bedroom": { "functions": ["privacy"] },
-    "hotel": { "functions": ["privacy"] },
-    "hotel lock": { "functions": ["privacy"] },
-    "entry": { "functions": ["entrance"] },
-    "entrance": { "functions": ["entrance"] },
-    "keyed entry": { "functions": ["entrance"] },
-    "office": { "functions": ["office", "entrance"] },
-    "communicating": { "functions": ["communicating"] },
-    "double door": { "functions": ["communicating"] },
-    "dummy": { "functions": ["dummy"] },
-    "closer": { "categories": ["door-closer"] },
-    "door closer": { "categories": ["door-closer"] },
-    "hydraulic closer": { "categories": ["door-closer"] },
-    "auto closer": { "categories": ["door-closer"] },
-    "self closing": { "categories": ["door-closer"] },
-    "stop arm": { "features": ["cush", "stop"] },
-    "cushion stop": { "features": ["cush", "stop"] },
-    "cush n stop": { "features": ["cush", "stop"] },
-    "cush-n-stop": { "features": ["cush", "stop"] },
-    "cush stop": { "features": ["cush", "stop"] },
-    "dead stop": { "features": ["dead stop"] },
-    "hold open": { "features": ["hold open"] },
-    "hold open arm": { "features": ["hold open"] },
-    "satin chrome": { "finishes": ["chrome"] },
-    "sat chrome": { "finishes": ["chrome"] },
-    "satin chromium": { "finishes": ["chrome"] },
-    "chrome": { "finishes": ["chrome"] },
-    "chromium": { "finishes": ["chrome"] },
-    "polished chrome": { "finishes": ["chrome"] },
-    "brass": { "finishes": ["brass"] },
-    "bronze": { "finishes": ["bronze"] },
-    "stainless": { "finishes": ["stainless"] },
-    "stainless steel": { "finishes": ["stainless"] },
-    "satin stainless": { "finishes": ["stainless"] },
-    "nickel": { "finishes": ["nickel"] },
-    "satin nickel": { "finishes": ["nickel"] },
-    "black": { "finishes": ["black"] },
-    "matte black": { "finishes": ["black"] },
-    "oil rubbed bronze": { "finishes": ["bronze"] },
-    "gold": { "finishes": ["gold"] },
-    "aluminum": { "finishes": ["aluminum"] },
-    "mortise": { "categories": ["mortise"] },
-    "mortise lock": { "categories": ["mortise"] },
-    "cylindrical": { "categories": ["cylindrical"] },
-    "cylindrical lock": { "categories": ["cylindrical"] },
-    "bored": { "categories": ["cylindrical"] },
-    "bored lock": { "categories": ["cylindrical"] },
-    "tubular": { "categories": ["cylindrical"] },
-    "exit": { "categories": ["exit-device"] },
-    "exit device": { "categories": ["exit-device"] },
-    "panic bar": { "categories": ["exit-device"] },
-    "crash bar": { "categories": ["exit-device"] },
-    "fire exit": { "categories": ["exit-device"] },
-    "push bar": { "categories": ["exit-device"] },
-    "emergency exit": { "categories": ["exit-device"] },
-    "keypad": { "cylinders": ["electronic"] },
-    "keypad lock": { "cylinders": ["electronic"] },
-    "smart": { "cylinders": ["electronic"] },
-    "smart lock": { "cylinders": ["electronic"] },
-    "smart deadbolt": { "cylinders": ["electronic"], "categories": ["deadbolt"] },
-    "electronic": { "cylinders": ["electronic"] },
-    "electronic lock": { "cylinders": ["electronic"] },
-    "wifi": { "cylinders": ["electronic"] },
-    "wi-fi": { "cylinders": ["electronic"] },
-    "bluetooth": { "cylinders": ["electronic"] },
-    "z-wave": { "cylinders": ["electronic"] },
-    "zwave": { "cylinders": ["electronic"] },
-    "keyless": { "cylinders": ["electronic"] },
-    "keyless entry": { "cylinders": ["electronic"] },
-    "interchangeable core": { "cylinders": ["sf-ic"] },
-    "sf ic": { "cylinders": ["sf-ic"] },
-    "sfic": { "cylinders": ["sf-ic"] },
-    "small format": { "cylinders": ["sf-ic"] },
-    "ic core": { "cylinders": ["sf-ic"] },
-    "core": { "cylinders": ["sf-ic"] },
-    "large format": { "cylinders": ["lf-ic"] },
-    "lf ic": { "cylinders": ["lf-ic"] },
-    "lever": { "styles": ["lever"] },
-    "lever lock": { "styles": ["lever"] },
-    "levers": { "styles": ["lever"] },
-    "knob": { "styles": ["knob"] },
-    "knob lock": { "styles": ["knob"] },
-    "knobs": { "styles": ["knob"] },
-    "deadbolt": { "categories": ["deadbolt"] },
-    "dead bolt": { "categories": ["deadbolt"] },
-    "deadlock": { "categories": ["deadbolt"] },
-    "dead latch": { "categories": ["deadbolt"] },
-    "deadlatch": { "categories": ["deadbolt"] },
-    "padlock": { "categories": ["padlock"] },
-    "paddock": { "categories": ["padlock"] },
-    "paddocks": { "categories": ["padlock"] },
-    "cabinet lock": { "categories": ["cabinet-lock"] },
-    "cabinet": { "categories": ["cabinet-lock"] },
-    "cam lock": { "categories": ["cabinet-lock"] },
-    "locker": { "categories": ["cabinet-lock"] },
-    "safe lock": { "categories": ["safe-lock"] },
-    "safe": { "categories": ["safe-lock"] },
-    "multipoint": { "categories": ["multipoint"] },
-    "multi point": { "categories": ["multipoint"] },
-    "maglock": { "categories": ["electromagnetic"] },
-    "mag lock": { "categories": ["electromagnetic"] },
-    "electromagnetic": { "categories": ["electromagnetic"] },
-    "electric strike": { "categories": ["electric-strike"] },
-    "strike": { "categories": ["electric-strike"] },
-    "door operator": { "categories": ["operator"] },
-    "automatic door": { "categories": ["operator"] },
-    "low energy": { "categories": ["operator"] },
-    "mullion": { "categories": ["mullion"] },
-    "coordinator": { "categories": ["coordinator"] },
-    "hinge": { "categories": ["hinge"] },
-    "handleset": { "categories": ["handleset"] },
-    "handle set": { "categories": ["handleset"] },
-    "commercial": { "types": ["commercial"] },
-    "residential": { "types": ["residential"] },
-    "push button": { "cylinders": ["electronic"], "categories": ["electronic"] },
-    "pushbutton": { "cylinders": ["electronic"], "categories": ["electronic"] }
+    "heavy duty": {
+      "grades": [
+        "1"
+      ]
+    },
+    "extra heavy duty": {
+      "grades": [
+        "1"
+      ]
+    },
+    "grade 1": {
+      "grades": [
+        "1"
+      ]
+    },
+    "heavy duty grade 1": {
+      "grades": [
+        "1"
+      ]
+    },
+    "grade 2": {
+      "grades": [
+        "2"
+      ]
+    },
+    "grade 3": {
+      "grades": [
+        "3"
+      ]
+    },
+    "school": {
+      "grades": [
+        "1"
+      ],
+      "functions": [
+        "classroom",
+        "classroom-security",
+        "storeroom"
+      ]
+    },
+    "schools": {
+      "grades": [
+        "1"
+      ],
+      "functions": [
+        "classroom",
+        "classroom-security",
+        "storeroom"
+      ]
+    },
+    "school lock": {
+      "functions": [
+        "classroom",
+        "classroom-security",
+        "storeroom"
+      ]
+    },
+    "classroom": {
+      "functions": [
+        "classroom"
+      ]
+    },
+    "class room": {
+      "functions": [
+        "classroom"
+      ]
+    },
+    "class room security": {
+      "functions": [
+        "classroom-security"
+      ]
+    },
+    "classroom security": {
+      "functions": [
+        "classroom-security"
+      ]
+    },
+    "store room": {
+      "functions": [
+        "storeroom"
+      ]
+    },
+    "storeroom": {
+      "functions": [
+        "storeroom"
+      ]
+    },
+    "store room lock": {
+      "functions": [
+        "storeroom"
+      ]
+    },
+    "closet": {
+      "functions": [
+        "storeroom"
+      ]
+    },
+    "passage": {
+      "functions": [
+        "passage"
+      ]
+    },
+    "pass through": {
+      "functions": [
+        "passage"
+      ]
+    },
+    "hall": {
+      "functions": [
+        "passage"
+      ]
+    },
+    "hallway": {
+      "functions": [
+        "passage"
+      ]
+    },
+    "privacy": {
+      "functions": [
+        "privacy"
+      ]
+    },
+    "bathroom": {
+      "functions": [
+        "privacy"
+      ]
+    },
+    "bedroom": {
+      "functions": [
+        "privacy"
+      ]
+    },
+    "hotel": {
+      "functions": [
+        "privacy"
+      ]
+    },
+    "hotel lock": {
+      "functions": [
+        "privacy"
+      ]
+    },
+    "entry": {
+      "functions": [
+        "entrance"
+      ]
+    },
+    "entrance": {
+      "functions": [
+        "entrance"
+      ]
+    },
+    "keyed entry": {
+      "functions": [
+        "entrance"
+      ]
+    },
+    "office": {
+      "functions": [
+        "office",
+        "entrance"
+      ]
+    },
+    "communicating": {
+      "functions": [
+        "communicating"
+      ]
+    },
+    "double door": {
+      "functions": [
+        "communicating"
+      ]
+    },
+    "dummy": {
+      "functions": [
+        "dummy"
+      ]
+    },
+    "closer": {
+      "categories": [
+        "door-closer"
+      ]
+    },
+    "door closer": {
+      "categories": [
+        "door-closer"
+      ]
+    },
+    "hydraulic closer": {
+      "categories": [
+        "door-closer"
+      ]
+    },
+    "auto closer": {
+      "categories": [
+        "door-closer"
+      ]
+    },
+    "self closing": {
+      "categories": [
+        "door-closer"
+      ]
+    },
+    "stop arm": {
+      "features": [
+        "cush",
+        "stop"
+      ]
+    },
+    "cushion stop": {
+      "features": [
+        "cush",
+        "stop"
+      ]
+    },
+    "cush n stop": {
+      "features": [
+        "cush",
+        "stop"
+      ]
+    },
+    "cush-n-stop": {
+      "features": [
+        "cush",
+        "stop"
+      ]
+    },
+    "cush stop": {
+      "features": [
+        "cush",
+        "stop"
+      ]
+    },
+    "dead stop": {
+      "features": [
+        "dead stop"
+      ]
+    },
+    "hold open": {
+      "features": [
+        "hold open"
+      ]
+    },
+    "hold open arm": {
+      "features": [
+        "hold open"
+      ]
+    },
+    "satin chrome": {
+      "finishes": [
+        "chrome"
+      ]
+    },
+    "sat chrome": {
+      "finishes": [
+        "chrome"
+      ]
+    },
+    "satin chromium": {
+      "finishes": [
+        "chrome"
+      ]
+    },
+    "chrome": {
+      "finishes": [
+        "chrome"
+      ]
+    },
+    "chromium": {
+      "finishes": [
+        "chrome"
+      ]
+    },
+    "polished chrome": {
+      "finishes": [
+        "chrome"
+      ]
+    },
+    "brass": {
+      "finishes": [
+        "brass"
+      ]
+    },
+    "bronze": {
+      "finishes": [
+        "bronze"
+      ]
+    },
+    "stainless": {
+      "finishes": [
+        "stainless"
+      ]
+    },
+    "stainless steel": {
+      "finishes": [
+        "stainless"
+      ]
+    },
+    "satin stainless": {
+      "finishes": [
+        "stainless"
+      ]
+    },
+    "nickel": {
+      "finishes": [
+        "nickel"
+      ]
+    },
+    "satin nickel": {
+      "finishes": [
+        "nickel"
+      ]
+    },
+    "black": {
+      "finishes": [
+        "black"
+      ]
+    },
+    "matte black": {
+      "finishes": [
+        "black"
+      ]
+    },
+    "oil rubbed bronze": {
+      "finishes": [
+        "bronze"
+      ]
+    },
+    "gold": {
+      "finishes": [
+        "gold"
+      ]
+    },
+    "aluminum": {
+      "finishes": [
+        "aluminum"
+      ]
+    },
+    "mortise": {
+      "categories": [
+        "mortise"
+      ]
+    },
+    "mortise lock": {
+      "categories": [
+        "mortise"
+      ]
+    },
+    "cylindrical": {
+      "categories": [
+        "cylindrical"
+      ]
+    },
+    "cylindrical lock": {
+      "categories": [
+        "cylindrical"
+      ]
+    },
+    "bored": {
+      "categories": [
+        "cylindrical"
+      ]
+    },
+    "bored lock": {
+      "categories": [
+        "cylindrical"
+      ]
+    },
+    "tubular": {
+      "categories": [
+        "cylindrical"
+      ]
+    },
+    "exit": {
+      "categories": [
+        "exit-device"
+      ]
+    },
+    "exit device": {
+      "categories": [
+        "exit-device"
+      ]
+    },
+    "panic bar": {
+      "categories": [
+        "exit-device"
+      ]
+    },
+    "crash bar": {
+      "categories": [
+        "exit-device"
+      ]
+    },
+    "fire exit": {
+      "categories": [
+        "exit-device"
+      ]
+    },
+    "push bar": {
+      "categories": [
+        "exit-device"
+      ]
+    },
+    "emergency exit": {
+      "categories": [
+        "exit-device"
+      ]
+    },
+    "keypad": {
+      "cylinders": [
+        "electronic"
+      ]
+    },
+    "keypad lock": {
+      "cylinders": [
+        "electronic"
+      ]
+    },
+    "smart": {
+      "cylinders": [
+        "electronic"
+      ]
+    },
+    "smart lock": {
+      "cylinders": [
+        "electronic"
+      ]
+    },
+    "smart deadbolt": {
+      "cylinders": [
+        "electronic"
+      ],
+      "categories": [
+        "deadbolt"
+      ]
+    },
+    "electronic": {
+      "cylinders": [
+        "electronic"
+      ]
+    },
+    "electronic lock": {
+      "cylinders": [
+        "electronic"
+      ]
+    },
+    "wifi": {
+      "cylinders": [
+        "electronic"
+      ]
+    },
+    "wi-fi": {
+      "cylinders": [
+        "electronic"
+      ]
+    },
+    "bluetooth": {
+      "cylinders": [
+        "electronic"
+      ]
+    },
+    "z-wave": {
+      "cylinders": [
+        "electronic"
+      ]
+    },
+    "zwave": {
+      "cylinders": [
+        "electronic"
+      ]
+    },
+    "keyless": {
+      "cylinders": [
+        "electronic"
+      ]
+    },
+    "keyless entry": {
+      "cylinders": [
+        "electronic"
+      ]
+    },
+    "interchangeable core": {
+      "cylinders": [
+        "sf-ic"
+      ]
+    },
+    "sf ic": {
+      "cylinders": [
+        "sf-ic"
+      ]
+    },
+    "sfic": {
+      "cylinders": [
+        "sf-ic"
+      ]
+    },
+    "small format": {
+      "cylinders": [
+        "sf-ic"
+      ]
+    },
+    "ic core": {
+      "cylinders": [
+        "sf-ic"
+      ]
+    },
+    "core": {
+      "cylinders": [
+        "sf-ic"
+      ]
+    },
+    "large format": {
+      "cylinders": [
+        "lf-ic"
+      ]
+    },
+    "lf ic": {
+      "cylinders": [
+        "lf-ic"
+      ]
+    },
+    "lever": {
+      "styles": [
+        "lever"
+      ]
+    },
+    "lever lock": {
+      "styles": [
+        "lever"
+      ]
+    },
+    "levers": {
+      "styles": [
+        "lever"
+      ]
+    },
+    "knob": {
+      "styles": [
+        "knob"
+      ]
+    },
+    "knob lock": {
+      "styles": [
+        "knob"
+      ]
+    },
+    "knobs": {
+      "styles": [
+        "knob"
+      ]
+    },
+    "deadbolt": {
+      "categories": [
+        "deadbolt"
+      ]
+    },
+    "dead bolt": {
+      "categories": [
+        "deadbolt"
+      ]
+    },
+    "deadlock": {
+      "categories": [
+        "deadbolt"
+      ]
+    },
+    "dead latch": {
+      "categories": [
+        "deadbolt"
+      ]
+    },
+    "deadlatch": {
+      "categories": [
+        "deadbolt"
+      ]
+    },
+    "padlock": {
+      "categories": [
+        "padlock"
+      ]
+    },
+    "paddock": {
+      "categories": [
+        "padlock"
+      ]
+    },
+    "paddocks": {
+      "categories": [
+        "padlock"
+      ]
+    },
+    "cabinet lock": {
+      "categories": [
+        "cabinet-lock"
+      ]
+    },
+    "cabinet": {
+      "categories": [
+        "cabinet-lock"
+      ]
+    },
+    "cam lock": {
+      "categories": [
+        "cabinet-lock"
+      ]
+    },
+    "locker": {
+      "categories": [
+        "cabinet-lock"
+      ]
+    },
+    "safe lock": {
+      "categories": [
+        "safe-lock"
+      ]
+    },
+    "safe": {
+      "categories": [
+        "safe-lock"
+      ]
+    },
+    "multipoint": {
+      "categories": [
+        "multipoint"
+      ]
+    },
+    "multi point": {
+      "categories": [
+        "multipoint"
+      ]
+    },
+    "maglock": {
+      "categories": [
+        "electromagnetic"
+      ]
+    },
+    "mag lock": {
+      "categories": [
+        "electromagnetic"
+      ]
+    },
+    "electromagnetic": {
+      "categories": [
+        "electromagnetic"
+      ]
+    },
+    "electric strike": {
+      "categories": [
+        "electric-strike"
+      ]
+    },
+    "strike": {
+      "categories": [
+        "electric-strike"
+      ]
+    },
+    "door operator": {
+      "categories": [
+        "operator"
+      ]
+    },
+    "automatic door": {
+      "categories": [
+        "operator"
+      ]
+    },
+    "low energy": {
+      "categories": [
+        "operator"
+      ]
+    },
+    "mullion": {
+      "categories": [
+        "mullion"
+      ]
+    },
+    "coordinator": {
+      "categories": [
+        "coordinator"
+      ]
+    },
+    "hinge": {
+      "categories": [
+        "hinge"
+      ]
+    },
+    "handleset": {
+      "categories": [
+        "handleset"
+      ]
+    },
+    "handle set": {
+      "categories": [
+        "handleset"
+      ]
+    },
+    "commercial": {
+      "types": [
+        "commercial"
+      ]
+    },
+    "residential": {
+      "types": [
+        "residential"
+      ]
+    },
+    "push button": {
+      "categories": [
+        "pushbutton"
+      ],
+      "cylinders": [
+        "electronic"
+      ]
+    },
+    "pushbutton": {
+      "categories": [
+        "pushbutton"
+      ],
+      "cylinders": [
+        "electronic"
+      ]
+    },
+    "pushbutton lock": {
+      "categories": [
+        "pushbutton"
+      ]
+    },
+    "push button lock": {
+      "categories": [
+        "pushbutton"
+      ]
+    },
+    "mechanical keyless": {
+      "categories": [
+        "pushbutton"
+      ]
+    },
+    "fsic": {
+      "cylinders": [
+        "lf-ic"
+      ]
+    },
+    "full size": {
+      "cylinders": [
+        "lf-ic"
+      ]
+    },
+    "full-size": {
+      "cylinders": [
+        "lf-ic"
+      ]
+    },
+    "lfic": {
+      "cylinders": [
+        "lf-ic"
+      ]
+    },
+    "26d": {
+      "finishes": [
+        "chrome"
+      ]
+    },
+    "us26d": {
+      "finishes": [
+        "chrome"
+      ]
+    },
+    "us26": {
+      "finishes": [
+        "chrome"
+      ]
+    },
+    "626": {
+      "finishes": [
+        "chrome"
+      ]
+    }
   }
 }

@@ -18,7 +18,7 @@ import { useAuth } from "~/hooks/useAuth";
 import { I18nProvider, useI18n } from "~/i18n/context";
 import type { ManufacturerData, ManufacturerOption, ProductSeries, SeriesOption, Selection, DataCache, CrossRefFamily, KeyBlank } from "~/types";
 import { CrossReferences } from "~/components/CrossReferences";
-import { buildSearchIndex, searchProducts, laymanSearch, getFilterOptions, type SearchFilters, type SearchResult } from "~/utils/product-search";
+import { buildSearchIndex, searchProducts, getFilterOptions, type SearchFilters, type SearchResult } from "~/utils/product-search";
 import { UUS_CATEGORIES, UUS_GRADES, UUS_FUNCTIONS, UUS_DESIGN_STYLES, UUS_CYLINDER_TYPES, type UusSynonymsFile } from "~/utils/uus";
 import { findUusCandidates, mapUusSelection, type UusBuildSelection } from "~/utils/uus-build";
 import { autoCorrectSelection, getAvailableValues, getConstraintForbiddenValues, validateUusMapping, evaluateState, extractConstraintState, UUS_FIELDS, type ConstraintTable, type AutoCorrection, type ConstraintState } from "~/utils/uus-constraints";
@@ -52,6 +52,9 @@ const loadAllData = createServerFn({ method: "GET" }).handler(async (): Promise<
   for (const file of manuFiles) {
     const id = file.replace(".json", "");
     const data = await loadJson<ManufacturerData>(`${base}/${file}`);
+    // Only real manufacturer files carry a `products` array — teammate working files
+    // (e.g. cr-ed-matrix-2026-08-12.json) must not surface as phantom manufacturers.
+    if (!data || !Array.isArray(data.products)) continue;
     manufacturerFiles[id] = data;
     manufacturers.push({ id, name: data.manufacturer });
   }
@@ -159,9 +162,8 @@ function Home() {
   const [findCategory, setFindCategory] = useState<string>("");
   const [findGrade, setFindGrade] = useState<string>("");
   const [findCommercial, setFindCommercial] = useState<boolean | undefined>(undefined);
-  // Phase B refined: layman search (plain-English) via uus-synonyms.json
+  // Brand-anchored progressive search phrase table (uus-synonyms.json)
   const [synonymsData, setSynonymsData] = useState<UusSynonymsFile | null>(null);
-  const [laymanForce, setLaymanForce] = useState(false);
   useEffect(() => {
     fetch("/data/uus-synonyms.json").then(r => r.json()).then(d => setSynonymsData(d as UusSynonymsFile)).catch(() => {});
   }, []);
@@ -555,20 +557,20 @@ function Home() {
   const filterOptions = useMemo(() => getFilterOptions(searchIndex), [searchIndex]);
   const uusCandidates = useMemo(() => findUusCandidates(data.manufacturerFiles, uusSel), [data.manufacturerFiles, uusSel]);
 
-  // Auto-detect: queries with no digits and no filters active are treated as plain-English
-  // (layman) searches; the manual toggle forces either mode. Part-number/series queries stay on the direct path.
-  const partNumberLike = /[0-9]/.test(findQuery);
-  const useLayman = laymanForce || (findQuery.trim().length > 0 && !partNumberLike && !findCategory && !findGrade && findCommercial === undefined);
+  // Find search (owner directive 2026-08-13): unified brand-anchored progressive search. Every query
+  // word filters (AND); a brand word anchors that brand's results to the top; the rest sort alphabetically.
+  // Attribute meaning comes from the uus-synonyms.json phrase table (fsic→LFIC, 26d→626 Satin Chrome, ...).
   const findResults = useMemo(() => {
-    if (useLayman) return laymanSearch(searchIndex, findQuery, synonymsData, 40);
     const filters: SearchFilters = {
       query: findQuery,
       category: findCategory || undefined,
       grade: findGrade || undefined,
       commercial: findCommercial,
+      synonyms: synonymsData,
+      semantic: true,
     };
     return searchProducts(searchIndex, filters, 40);
-  }, [searchIndex, findQuery, findCategory, findGrade, findCommercial, useLayman, synonymsData]);
+  }, [searchIndex, findQuery, findCategory, findGrade, findCommercial, synonymsData]);
 
   // Copy-to-clipboard button
   function CopyButton({ text, label }: { text: string; label?: string }) {
@@ -1152,7 +1154,7 @@ function Home() {
               type="text"
               value={findQuery}
               onChange={(e) => setFindQuery(e.target.value)}
-              placeholder={useLayman ? "Try: heavy duty school lock, satin chrome storeroom lever..." : "Search by name, series, brand, or category..."}
+              placeholder="Search by brand, function, style, finish, or part number — try: Arrow Lock storeroom lever grade 1 FSIC 26D"
               className="mt-1 w-full rounded-lg border px-4 py-3 text-sm transition-colors"
               style={{
                 backgroundColor: "var(--bg-primary)",
@@ -1163,20 +1165,8 @@ function Home() {
               }}
             />
             <div className="mt-2 flex items-center gap-2">
-              <button
-                onClick={() => setLaymanForce(!laymanForce)}
-                className="rounded-full px-3 py-1.5 text-xs font-medium transition-colors"
-                style={{
-                  backgroundColor: useLayman ? "var(--accent)" : "color-mix(in srgb, var(--accent) 10%, transparent)",
-                  color: useLayman ? "#fff" : "var(--accent)",
-                  cursor: "pointer",
-                  minHeight: "32px",
-                  border: "none",
-                }}>
-                {useLayman ? "🔎 Plain English search" : "🔎 Plain English search (off)"}
-              </button>
               <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                {useLayman ? `Matching by meaning — try "school lock" or "panic bar".` : "Type a part number / series for exact find, or toggle plain-English search."}
+                🔎 Every word narrows the results — brand names rank first, then matches alphabetically. Try "Storeroom Lever" or "satin chrome 26D".
               </span>
             </div>
           </div>
@@ -1306,7 +1296,7 @@ function Home() {
                           {result.grade === "residential" ? "Residential" : `Grade ${result.grade}`}
                         </span>
                       )}
-                      {(result as { matchedAttributes?: string[] }).matchedAttributes?.map((m) => (
+                      {result.matchedAttributes?.map((m) => (
                         <span key={m} className="rounded px-1.5 py-0.5 text-xs font-medium" style={{ backgroundColor: "color-mix(in srgb, var(--accent) 14%, transparent)", color: "var(--accent)" }}>
                           {m.replace(/^[A-Za-z]+: /, "")}
                         </span>

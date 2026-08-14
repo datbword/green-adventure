@@ -1,5 +1,15 @@
 import type { ManufacturerData, ProductSeries } from "~/types";
-import { uusSearchText, parseLaymanQuery, matchLayman, type UusSynonymsFile } from "~/utils/uus";
+import {
+  uusSearchText,
+  parseLaymanQuery,
+  matchLayman,
+  deriveUus,
+  categoryFormMatches,
+  UUS_CYLINDER_TYPES,
+  type UusSynonymsFile,
+  type UusLaymanAttributes,
+  type UusAttributes,
+} from "~/utils/uus";
 
 export interface SearchFilters {
   query: string;
@@ -7,6 +17,10 @@ export interface SearchFilters {
   grade?: string;
   commercial?: boolean; // true = commercial only, false = residential, undefined = both
   manufacturer?: string;
+  /** uus-synonyms.json phrase table — required for the brand-anchored progressive search */
+  synonyms?: UusSynonymsFile | null;
+  /** true → brand-anchored progressive search (every token filters, AND; anchored brands rank first) */
+  semantic?: boolean;
 }
 
 export interface SearchResult {
@@ -18,6 +32,10 @@ export interface SearchResult {
   grade: string;
   partNumberPattern: string;
   matchScore: number;
+  /** semantic search: matched attribute chips ("Function: Storeroom", "Finish: Satin Chrome (626)", ...) */
+  matchedAttributes?: string[];
+  /** semantic search: true when the result's brand was anchored by the query */
+  brandAnchored?: boolean;
 }
 
 interface IndexedProduct {
@@ -76,7 +94,7 @@ export function buildSearchIndex(
     for (const product of data.products) {
       // UUS search text comes from the RUNTIME derivation (canonical source).
       const searchText = normalize(
-        `${product.name} ${product.series} ${product.category} ${data.manufacturer} ${product.description ?? ""} ${uusSearchText(product)}`,
+        `${product.name} ${product.series} ${product.category} ${data.manufacturer} ${product.description ?? ""} ${(product.examples ?? []).join(" ")} ${uusSearchText(product)}`,
       );
       index.push({
         manufacturerId: mfrId,
@@ -95,6 +113,11 @@ export function searchProducts(
   filters: SearchFilters,
   limit: number = 50,
 ): SearchResult[] {
+  // Brand-anchored progressive search (owner directive 2026-08-13): enabled when the Find tab passes
+  // the synonym phrase table + semantic flag. The legacy scoring path below is preserved unchanged so
+  // callers without the synonym table (verify suites, direct find) behave exactly as before.
+  if (filters.semantic && filters.synonyms) return semanticSearch(index, filters, limit);
+
   const queryTokens = filters.query ? normalize(filters.query).split(" ").filter(Boolean) : [];
 
   const results: SearchResult[] = [];
@@ -166,6 +189,235 @@ export function searchProducts(
   // Sort by score descending
   results.sort((a, b) => b.matchScore - a.matchScore);
 
+  return results.slice(0, limit);
+}
+
+// ─────────────────── Brand-anchored progressive search (owner directive 2026-08-13) ───────────────────
+// Replaces fuzzy scoring in the Find tab: every query token must FILTER (AND semantics), a token that
+// matches a manufacturer name anchors that brand's results to the top (other brands still appear below
+// when they satisfy the REMAINING tokens), and the final list is alphabetical. Attribute mapping reuses
+// the UUS runtime attributes + uus-synonyms.json phrase table — the single source of layman meaning.
+
+interface SemanticQuery {
+  brandIds: string[];
+  attrs: UusLaymanAttributes;
+  textTokens: string[];
+  finish626: boolean;
+  /** true when any non-brand constraint exists (attribute group, text token, or 626 finish) */
+  hasNonBrand: boolean;
+}
+
+/** Parse a query into brand anchors + attribute constraints + leftover text tokens. Words consumed by a
+ *  brand name or a synonym phrase are NOT also applied as text filters (no double counting). */
+function parseSemanticQuery(query: string, synonyms: UusSynonymsFile | null, index: IndexedProduct[]): SemanticQuery {
+  const q = normalize(query);
+  const words = q.split(" ").filter(Boolean);
+  const consumed: boolean[] = words.map(() => false);
+  const brandIds = new Set<string>();
+  if (words.length > 0) {
+    // 1) full manufacturer names ("arrow lock", "von duprin", "cal royal products") — longest first
+    const names = [...new Set(index.map(e => normalize(e.manufacturerName)))]
+      .filter(Boolean)
+      .sort((a, b) => b.split(" ").length - a.split(" ").length || a.localeCompare(b));
+    for (const name of names) {
+      const nw = name.split(" ");
+      for (let i = 0; i + nw.length <= words.length; i++) {
+        if (nw.some((_, j) => consumed[i + j])) continue;
+        if (words.slice(i, i + nw.length).join(" ") !== name) continue;
+        const mfr = index.find(e => normalize(e.manufacturerName) === name);
+        if (mfr) brandIds.add(mfr.manufacturerId);
+        nw.forEach((_, j) => (consumed[i + j] = true));
+        break;
+      }
+    }
+    // 2) single-word brand tokens (first word of a manufacturer name, ≥3 chars): "arrow", "schlage", "best"
+    const firstWords = new Set(names.map(nm => nm.split(" ")[0]).filter(w => w.length >= 3));
+    words.forEach((w, i) => {
+      if (consumed[i] || !firstWords.has(w)) return;
+      const mfr = index.find(e => normalize(e.manufacturerName).split(" ")[0] === w);
+      if (mfr) {
+        brandIds.add(mfr.manufacturerId);
+        consumed[i] = true;
+      }
+    });
+    // 3) synonym phrases (multi-word first); normalized keys so "full-size"/"cush-n-stop" match the
+    //    space-normalized query ("full size"/"cush n stop")
+    const phrases = Object.keys(synonyms?.phrases ?? {})
+      .map(p => ({ raw: p, norm: normalize(p) }))
+      .filter(p => p.norm)
+      .sort((a, b) => b.norm.split(" ").length - a.norm.split(" ").length || a.norm.localeCompare(b.norm));
+    for (const { norm } of phrases) {
+      const pw = norm.split(" ");
+      for (let i = 0; i + pw.length <= words.length; i++) {
+        if (pw.some((_, j) => consumed[i + j])) continue;
+        if (words.slice(i, i + pw.length).join(" ") !== norm) continue;
+        pw.forEach((_, j) => (consumed[i + j] = true));
+        break;
+      }
+    }
+  }
+  const textTokens = words.filter((_, i) => !consumed[i]);
+  const attrs = parseLaymanQuery(query, synonyms);
+  const finish626 = /\b(26d|us26d|626)\b/.test(q);
+  const hasNonBrand =
+    finish626 ||
+    textTokens.length > 0 ||
+    ["categories", "grades", "functions", "finishes", "cylinders", "styles", "types", "features"]
+      .some(k => (attrs as Record<string, Set<string>>)[k].size > 0);
+  return { brandIds: [...brandIds], attrs, textTokens, finish626, hasNonBrand };
+}
+
+/** Does a product satisfy the cylinder constraints? Type match, or an in-file IC-option signal
+ *  (Arrow's "-SIC / Large Format Interchangeable Core (LFIC)" derives sf-ic because the series also
+ *  carries -IC SFIC — the option text is the honest LFIC/FSIC signal). */
+function cylinderMatches(a: UusAttributes, p: ProductSeries, cyls: Set<string>): boolean {
+  if (cyls.has(a.cylinderType.id)) return true;
+  const optsText = ["cylinder", "corePrep", "coreType", "cylinderPrep", "core", "cylinderTech", "keying"]
+    .flatMap(k => (p.options?.[k] ?? []).map(o => normalize(`${o.code ?? ""} ${o.name ?? ""} ${o.description ?? ""}`)))
+    .join(" ");
+  if (cyls.has("lf-ic") && /lfic|full ?size|large format|fsic/.test(optsText)) return true;
+  if (cyls.has("sf-ic") && /\bsfic\b|small format/.test(optsText)) return true;
+  return false;
+}
+
+/** Does the product offer finish 626 specifically (code 626, or a 626/26D/satin-chrome option name)? */
+function offersFinish626(p: ProductSeries): boolean {
+  return (p.options?.["finish"] ?? []).some(o => {
+    const code = o.code ?? "";
+    const t = normalize(`${code} ${o.name ?? ""} ${o.description ?? ""}`);
+    return code === "626" || /\b626\b|26d|satin chrome|satin chromium/.test(t);
+  });
+}
+
+/** Evaluate one product against the semantic query's non-brand constraints. Returns display chips, or
+ *  null when any token constraint fails (AND semantics). */
+function semanticMatch(entry: IndexedProduct, sq: SemanticQuery): string[] | null {
+  const p = entry.product;
+  const a = deriveUus(p);
+  const chips: string[] = [];
+  const q = sq.attrs;
+  if (q.categories.size) {
+    if (![...q.categories].some(c => categoryFormMatches(c, p, a))) return null;
+    chips.push(`Category: ${a.category.label}`);
+  }
+  if (q.grades.size) {
+    if (!q.grades.has(a.grade.id)) return null;
+    chips.push(`Grade: ${a.grade.label}`);
+  }
+  if (q.functions.size) {
+    const hit = a.functions.find(f => q.functions.has(f.id));
+    if (!hit) return null;
+    chips.push(`Function: ${hit.label}`);
+  }
+  if (q.finishes.size) {
+    const hit = a.finishFamilies.find(f => q.finishes.has(f.id));
+    if (!hit) return null;
+    chips.push(`Finish: ${hit.label}`);
+  }
+  if (q.cylinders.size) {
+    if (!cylinderMatches(a, p, q.cylinders)) return null;
+    const matchedId = q.cylinders.has(a.cylinderType.id)
+      ? a.cylinderType.id
+      : q.cylinders.has("lf-ic")
+        ? "lf-ic"
+        : "sf-ic";
+    chips.push(`Cylinder: ${UUS_CYLINDER_TYPES[matchedId] ?? matchedId}`);
+  }
+  if (q.styles.size) {
+    const nameText = normalize(`${p.name} ${p.series}`);
+    // Form language from the product's own name/style options is authoritative: a product whose
+    // name or style option says "knob" is a knob even when its UUS designStyle buckets to "flat"
+    // (e.g. Schlage "Bowery — Modern Cylindrical Knob" derives flat via the word "modern").
+    const styleOptText = (p.options?.["style"] ?? [])
+      .map(o => normalize(`${o.name ?? ""} ${o.code ?? ""}`))
+      .join(" ");
+    const isKnobForm = a.designStyle.id === "knob" || /\bknob(s)?\b/.test(nameText) || /\bknob(s)?\b/.test(styleOptText);
+    let ok = false;
+    if (q.styles.has("knob") && isKnobForm) {
+      ok = true;
+      chips.push("Style: Knob");
+    } else if (
+      q.styles.has("lever") &&
+      !isKnobForm &&
+      a.designStyle.id !== "none" &&
+      /lever|cylindrical/.test(nameText)
+    ) {
+      ok = true;
+      chips.push("Style: Lever");
+    } else if (q.styles.has(a.designStyle.id)) {
+      ok = true;
+      chips.push(`Style: ${a.designStyle.label}`);
+    }
+    if (!ok) return null;
+  }
+  if (q.types.size) {
+    if (!(p.type && q.types.has(p.type))) return null;
+    chips.push(`Type: ${p.type}`);
+  }
+  if (q.features.size) {
+    const sizeText = normalize(a.sizing.join(" ") + " " + (p.description ?? ""));
+    const hit = [...q.features].find(f => sizeText.includes(f));
+    if (!hit) return null;
+    chips.push(`Feature: ${hit}`);
+  }
+  if (sq.finish626) {
+    if (!offersFinish626(p)) return null;
+    chips.push("Finish: Satin Chrome (626)");
+  }
+  for (const tok of sq.textTokens) {
+    if (!entry.searchText.includes(tok)) return null;
+  }
+  return chips;
+}
+
+/** Brand-anchored progressive search. Anchored brands rank first (alphabetical within), then all other
+ *  matching products alphabetical by manufacturer then product name. A brand-only query shows only the
+ *  anchored brand; a brand + attributes query shows the brand first and other brands' matching products
+ *  below (owner rule: other options appear only if they match the remaining words). */
+function semanticSearch(index: IndexedProduct[], filters: SearchFilters, limit: number): SearchResult[] {
+  const sq = parseSemanticQuery(filters.query, filters.synonyms ?? null, index);
+  const results: SearchResult[] = [];
+  for (const entry of index) {
+    const product = entry.product;
+    const normCategory = normalizeCategory(product.category ?? "");
+    // Existing filter chips compose with query narrowing (requirement 5).
+    if (filters.category && normCategory !== filters.category) continue;
+    const productGrade = extractGrade(product);
+    if (filters.grade && productGrade !== filters.grade) continue;
+    if (filters.commercial === true && !isCommercial(product)) continue;
+    if (filters.commercial === false && isCommercial(product)) continue;
+    if (filters.manufacturer && entry.manufacturerId !== filters.manufacturer) continue;
+
+    const anchored = sq.brandIds.includes(entry.manufacturerId);
+    // Brand-only query (no other tokens) → only the anchored brand's products are shown.
+    if (sq.brandIds.length > 0 && !anchored && !sq.hasNonBrand) continue;
+
+    const chips = semanticMatch(entry, sq);
+    if (!chips) continue;
+
+    results.push({
+      manufacturerId: entry.manufacturerId,
+      manufacturerName: entry.manufacturerName,
+      productName: product.name,
+      series: product.series,
+      category: normCategory,
+      grade: productGrade || "—",
+      partNumberPattern: product.partNumberPattern,
+      matchScore: chips.length,
+      matchedAttributes: chips,
+      brandAnchored: anchored,
+    });
+  }
+  results.sort((x, y) => {
+    const ax = sq.brandIds.includes(x.manufacturerId) ? 0 : 1;
+    const ay = sq.brandIds.includes(y.manufacturerId) ? 0 : 1;
+    if (ax !== ay) return ax - ay;
+    return (
+      x.manufacturerName.localeCompare(y.manufacturerName) ||
+      x.productName.localeCompare(y.productName) ||
+      x.series.localeCompare(y.series)
+    );
+  });
   return results.slice(0, limit);
 }
 
