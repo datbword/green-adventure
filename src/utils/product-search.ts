@@ -262,6 +262,71 @@ function parseSemanticQuery(query: string, synonyms: UusSynonymsFile | null, ind
         break;
       }
     }
+    // 4) brand PREFIX tokens — partial brand names must anchor their brand: "cor" → corbin-russwin,
+    //    "sarge" → sargent, "sch" → schlage. A run of consecutive unconsumed tokens that is a
+    //    case-insensitive prefix of a brand's NAME WORDS anchors that brand and is consumed (it must
+    //    not also be applied as a text/attribute filter — same rule as brandConsumed above). Rule for
+    //    single-token anchors: token length ≥ 3 ("cor" → corbin-russwin). A short token ("co r" → the
+    //    leading 2-char "co") is only accepted when a SECOND token disambiguates: each consecutive
+    //    query token must prefix the brand's consecutive name word ("co"+"r" → cor|bin r|usswin =
+    //    corbin-russwin — beats compx/codelocks which only match the first word). Ambiguity rule
+    //    (owner directive): when several brands tie, anchor ALL of them — never a wrong single brand;
+    //    a longer run outranks a shorter one, and the next scan pass resolves any remaining run.
+    {
+      const unconsumed: { word: string; i: number }[] = [];
+      words.forEach((w, i) => { if (!consumed[i]) unconsumed.push({ word: w, i }); });
+      if (unconsumed.length > 0) {
+        const lexWords = new Map<string, string[]>();
+        const prodCount = new Map<string, number>();
+        for (const e of index) {
+          if (!lexWords.has(e.manufacturerId)) {
+            lexWords.set(e.manufacturerId, normalize(e.manufacturerName).split(" ").filter(Boolean));
+          }
+          prodCount.set(e.manufacturerId, (prodCount.get(e.manufacturerId) ?? 0) + 1);
+        }
+        const lex = [...lexWords.entries()];
+        // Repeatedly find the best (longest) prefix run; resolve it, then rescan the remainder.
+        for (;;) {
+          let best: { score: number; p: number; ids: string[] } | null = null;
+          for (let p = 0; p < unconsumed.length; p++) {
+            const first = unconsumed[p];
+            if (first.word.length < 2) continue; // a 1-char token can't lead a brand anchor
+            for (const [id, bWords] of lex) {
+              let score = 0;
+              while (
+                score < bWords.length &&
+                p + score < unconsumed.length &&
+                bWords[score].startsWith(unconsumed[p + score].word)
+              ) score++;
+              // Single-token matches need ≥3 chars ("cor"/"sch"/"sarge"); 2-char first tokens are
+              // only kept when a second token extends the run ("co r") and disambiguates the brand.
+              if (score === 0 || (score === 1 && first.word.length < 3)) continue;
+              if (!best || score > best.score) best = { score, p, ids: [id] };
+              else if (score === best.score && best.p === p && !best.ids.includes(id)) best.ids.push(id);
+            }
+          }
+          if (!best) break;
+          // Exact-name single-token ties ("cor" → corbin-russwin ≈ compx ≈ codelocks) resolve by
+          // catalog prominence (most products = the brand the owner means). On an exact product-count
+          // tie we anchor ALL tied brands — never a wrong single brand.
+          if (best.score === 1 && best.ids.length > 1) {
+            let maxC = -1;
+            for (const id of best.ids) maxC = Math.max(maxC, prodCount.get(id) ?? 0);
+            const top = best.ids.filter(id => (prodCount.get(id) ?? 0) === maxC);
+            if (top.length === 1) best = { score: 1, p: best.p, ids: top };
+            // else: equal prominence → anchor all top brands.
+            else best = { score: 1, p: best.p, ids: top };
+          }
+          for (let k = 0; k < best.score; k++) {
+            const u = unconsumed[best.p + k];
+            consumed[u.i] = true;
+            brandConsumed[u.i] = true;
+          }
+          for (const id of best.ids) brandIds.add(id);
+          for (let k = best.score - 1; k >= 0; k--) unconsumed.splice(best.p + k, 1);
+        }
+      }
+    }
   }
   const textTokens = words.filter((_, i) => !consumed[i]);
   // Attribute meaning comes from non-brand words only (see brandConsumed note above).
